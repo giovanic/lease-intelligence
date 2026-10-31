@@ -5,8 +5,9 @@ memberships (sign-in + tenant selection; no invitations flow yet),
 Portfolio (properties, counterparties) and Lease Management's
 registration (lease + property + parties, no terms) and Document
 Management & Versioning (upload of contracts/amendments, immutable
-versions, private file access) — API and SPA screens. Everything else is
-planned.
+versions, private file access) and OCR Processing (per-page text of every
+uploaded version, native PDF text or local Tesseract OCR, status + retry
+in the SPA) — API and SPA screens. Everything else is planned.
 
 ## In scope for MVP
 

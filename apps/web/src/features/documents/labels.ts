@@ -1,4 +1,4 @@
-import type { DocumentKind } from '../../types/api'
+import type { DocumentKind, TextExtraction, TextExtractionErrorCode } from '../../types/api'
 
 export const DOCUMENT_KIND_LABELS: Record<DocumentKind, string> = {
   original_contract: 'Contrato original',
@@ -32,4 +32,24 @@ const DATE_TIME = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeSty
 
 export function formatDateTime(iso: string): string {
   return DATE_TIME.format(new Date(iso))
+}
+
+/** Why a text extraction failed, for the person who can retry it (docs/adr/0016). */
+export const TEXT_EXTRACTION_ERROR_LABELS: Record<TextExtractionErrorCode, string> = {
+  unreadable_file: 'arquivo ilegível ou corrompido',
+  encrypted_pdf: 'PDF protegido por senha',
+  too_many_pages: 'mais de 300 páginas',
+  timeout: 'o OCR demorou demais',
+  ocr_unavailable: 'OCR indisponível no servidor',
+  storage_unavailable: 'arquivo indisponível no armazenamento',
+  abandoned: 'processamento interrompido',
+  internal_error: 'erro interno',
+}
+
+export function isTextExtractionActive(extraction: TextExtraction | null): boolean {
+  return extraction?.status === 'pending' || extraction?.status === 'running'
+}
+
+export function pagesLabel(count: number): string {
+  return count === 1 ? '1 página' : `${count} páginas`
 }

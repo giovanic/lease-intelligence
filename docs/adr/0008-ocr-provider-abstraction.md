@@ -48,5 +48,7 @@ encrypted credentials / environment variables, never hardcoded).
 
 ## Implementation status
 
-**Decided, not implemented.** No OCR integration, no provider interface,
-and no vendor selection exist in the codebase yet.
+**Implemented.** The interface is `Ocr` (`app/services/ocr.rb`); the one
+adapter is `Ocr::TesseractProvider` (local Tesseract + `pdftoppm`), chosen
+in ADR-0016, which also defines the data model and pipeline around it.
+Specs use a fake provider (`spec/support/document_text_helpers.rb`).

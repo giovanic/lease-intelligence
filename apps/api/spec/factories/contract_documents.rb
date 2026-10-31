@@ -22,4 +22,19 @@ FactoryBot.define do
     byte_size { 1024 }
     sha256 { SecureRandom.hex(32) }
   end
+
+  # A pending attempt, written directly (normally DocumentText::RequestExtraction).
+  factory :document_text_extraction do
+    document_version
+    tenant { document_version.tenant }
+    status { "pending" }
+  end
+
+  factory :document_text_page do
+    text_extraction factory: :document_text_extraction
+    tenant { text_extraction.tenant }
+    sequence(:page_number)
+    source { "native" }
+    text { "Cláusula primeira" }
+  end
 end

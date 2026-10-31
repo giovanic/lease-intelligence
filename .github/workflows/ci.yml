@@ -76,6 +76,15 @@ jobs:
           working-directory: apps/api
           bundler-cache: true
 
+      # OCR engine + PDF rasterizer of Ocr::TesseractProvider (docs/adr/0016).
+      # Its specs refuse to skip when CI is set, so this step cannot silently
+      # go missing.
+      - name: Install the OCR binaries
+        working-directory: .
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install --no-install-recommends -y tesseract-ocr tesseract-ocr-por poppler-utils
+
       # The suite must run as the same kind of role as production: no
       # SUPERUSER, no BYPASSRLS (otherwise every RLS policy is silently
       # skipped and the isolation specs prove nothing). CREATEDB only so

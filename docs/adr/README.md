@@ -18,7 +18,7 @@ field, and verify against the actual code before relying on it.
 | [0005](0005-rails-api-react-frontend-separation.md) | Rails API + React frontend separation | Decided, partially scaffolded |
 | [0006](0006-background-processing-sidekiq.md) | Background processing (Sidekiq) | Accepted — implemented |
 | [0007](0007-private-object-storage.md) | Private object storage | Decided, partially implemented |
-| [0008](0008-ocr-provider-abstraction.md) | OCR provider abstraction | Decided, not implemented |
+| [0008](0008-ocr-provider-abstraction.md) | OCR provider abstraction | Implemented (Tesseract adapter, ADR-0016) |
 | [0009](0009-llm-provider-abstraction.md) | LLM provider abstraction | Decided, not implemented |
 | [0010](0010-document-contract-versioning.md) | Document and contract versioning | Decided, partially implemented (documents) |
 | [0011](0011-evidence-first-architecture.md) | Evidence-first data architecture | Decided, not implemented |
@@ -26,6 +26,7 @@ field, and verify against the actual code before relying on it.
 | [0013](0013-spa-session-auth-and-tenant-selection.md) | SPA session-cookie auth + `X-Tenant-Id` tenant selection | Implemented (API) |
 | [0014](0014-spa-routing-react-router.md) | SPA routing with React Router (declarative mode) | Implemented |
 | [0015](0015-document-file-storage-and-access.md) | Document file storage and access | Implemented |
+| [0016](0016-document-text-extraction.md) | Document text extraction (native PDF text + Tesseract OCR) | Implemented |
 
 ## How to propose a new ADR
 

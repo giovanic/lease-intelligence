@@ -48,6 +48,19 @@ bin/rails db:prepare   # once a database.yml-reachable Postgres exists and
 bin/rails server
 ```
 
+System packages for text extraction (ADR-0016) — the Sidekiq worker runs
+OCR locally:
+
+```
+sudo apt-get install -y tesseract-ocr tesseract-ocr-por poppler-utils
+```
+
+Without them, digital PDFs still get their native text, scanned pages and
+images end as `failed` / `ocr_unavailable`, and the real-adapter specs are
+skipped locally (never in CI). Text extraction runs in the worker
+(`bin/jobs`, needs Redis on `localhost:6379`); without it, uploads stay
+"Na fila" in the SPA.
+
 No `bin/dev` Procfile-based multi-process setup has been inspected beyond
 the default `bin/dev` script already present — verify its contents before
 relying on it for running Puma + any worker process together.

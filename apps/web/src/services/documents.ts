@@ -1,8 +1,9 @@
-import type { ContractDocument, ContractDocumentInput, DocumentVersion, DownloadLink, Page } from '../types/api'
+import type { ContractDocument, ContractDocumentInput, DocumentVersion, DownloadLink, Page, TextExtraction } from '../types/api'
 import { apiRequest, apiRequestPage } from './apiClient'
 
-// /api/v1/leases/:lease_id/documents and file access (docs/domain/documents.md,
-// docs/adr/0015). Uploads go as multipart/form-data.
+// /api/v1/leases/:lease_id/documents, file access (docs/domain/documents.md,
+// docs/adr/0015) and text extraction (docs/adr/0016). Uploads go as
+// multipart/form-data.
 
 function documentsPath(leaseId: string): string {
   return `/leases/${encodeURIComponent(leaseId)}/documents`
@@ -41,6 +42,14 @@ export function uploadDocumentVersion(
 
 export function createDownloadLink(tenantId: string, versionId: string): Promise<DownloadLink> {
   return apiRequest<DownloadLink>(`/document_versions/${encodeURIComponent(versionId)}/download_link`, {
+    method: 'POST',
+    tenantId,
+  })
+}
+
+/** Queues a new text extraction of a version; 409 extraction_in_progress while one is pending/running. */
+export function requestTextExtraction(tenantId: string, versionId: string): Promise<TextExtraction> {
+  return apiRequest<TextExtraction>(`/document_versions/${encodeURIComponent(versionId)}/text_extractions`, {
     method: 'POST',
     tenantId,
   })

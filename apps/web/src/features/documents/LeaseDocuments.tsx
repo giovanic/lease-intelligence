@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { QueryView } from '../../components/QueryView'
 import { StatusMessage } from '../../components/StatusMessage'
 import { useApiQuery } from '../../hooks/useApiQuery'
@@ -6,21 +6,42 @@ import { listLeaseDocuments } from '../../services/documents'
 import { useWorkspace } from '../../state/workspace'
 import type { ContractDocument } from '../../types/api'
 import { DocumentUploadForm } from './DocumentUploadForm'
-import { DOCUMENT_KIND_LABELS, formatBytes, formatDateTime } from './labels'
+import { DOCUMENT_KIND_LABELS, formatBytes, formatDateTime, isTextExtractionActive } from './labels'
 import { NewVersionForm } from './NewVersionForm'
+import { TextExtractionStatus } from './TextExtractionStatus'
 import { useOpenDocumentVersion } from './useOpenDocumentVersion'
+import { useRequestTextExtraction } from './useRequestTextExtraction'
 
 const PER_PAGE = 100
+/** While an extraction is queued or running, the list refreshes in the background this often. */
+const POLL_INTERVAL_MS = 5000
 
-/** The documents of a lease (first 100), each with its version history. */
+/**
+ * The documents of a lease (first 100), each with its version history and
+ * the text extraction status of every version.
+ */
 export function LeaseDocuments({ leaseId }: { leaseId: string }) {
   const { tenantId, canEdit } = useWorkspace()
-  const { state, retry } = useApiQuery(`lease-documents:${tenantId}:${leaseId}`, () =>
+  const { state, retry, refresh } = useApiQuery(`lease-documents:${tenantId}:${leaseId}`, () =>
     listLeaseDocuments(tenantId, leaseId, { per_page: PER_PAGE }),
   )
   const [uploading, setUploading] = useState(false)
   const [versionFormFor, setVersionFormFor] = useState<string | null>(null)
   const { open, openingId, error: openError } = useOpenDocumentVersion()
+  const { request, requestingId, error: requestError } = useRequestTextExtraction(refresh)
+
+  const documents = state.status === 'success' ? state.data.data : null
+  const extracting =
+    documents?.some((document) => document.versions.some((version) => isTextExtractionActive(version.text_extraction))) ??
+    false
+
+  // One timer per answer: each refresh brings new data, which re-arms it
+  // until nothing is queued or running.
+  useEffect(() => {
+    if (!extracting) return
+    const timer = window.setTimeout(refresh, POLL_INTERVAL_MS)
+    return () => window.clearTimeout(timer)
+  }, [extracting, documents, refresh])
 
   function refreshAfterUpload() {
     setUploading(false)
@@ -39,10 +60,13 @@ export function LeaseDocuments({ leaseId }: { leaseId: string }) {
         )}
       </div>
 
-      {openError && (
-        <div className="alert" role="alert">
-          {openError}
-        </div>
+      {[openError, requestError].map(
+        (message) =>
+          message && (
+            <div key={message} className="alert" role="alert">
+              {message}
+            </div>
+          ),
       )}
 
       <QueryView state={state} onRetry={retry} loadingTitle="Carregando documentos…">
@@ -71,6 +95,8 @@ export function LeaseDocuments({ leaseId }: { leaseId: string }) {
                   canEdit={canEdit}
                   openingId={openingId}
                   onOpen={open}
+                  requestingId={requestingId}
+                  onRequestText={request}
                   showVersionForm={versionFormFor === document.id}
                   onToggleVersionForm={(show) => setVersionFormFor(show ? document.id : null)}
                   versionForm={
@@ -102,6 +128,8 @@ interface DocumentCardProps {
   canEdit: boolean
   openingId: string | null
   onOpen: (versionId: string) => void
+  requestingId: string | null
+  onRequestText: (versionId: string) => void
   showVersionForm: boolean
   onToggleVersionForm: (show: boolean) => void
   versionForm: ReactNode
@@ -112,6 +140,8 @@ function DocumentCard({
   canEdit,
   openingId,
   onOpen,
+  requestingId,
+  onRequestText,
   showVersionForm,
   onToggleVersionForm,
   versionForm,
@@ -141,6 +171,7 @@ function DocumentCard({
               <th className="table__number">Tamanho</th>
               <th>Enviado por</th>
               <th>Enviado em</th>
+              <th>Texto</th>
               <th aria-label="Ações" />
             </tr>
           </thead>
@@ -155,6 +186,14 @@ function DocumentCard({
                 <td className="table__number">{formatBytes(version.byte_size)}</td>
                 <td>{version.uploaded_by.full_name}</td>
                 <td>{formatDateTime(version.created_at)}</td>
+                <td>
+                  <TextExtractionStatus
+                    extraction={version.text_extraction}
+                    canEdit={canEdit}
+                    requesting={requestingId === version.id}
+                    onRequest={() => onRequestText(version.id)}
+                  />
+                </td>
                 <td>
                   <button
                     type="button"

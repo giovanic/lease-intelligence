@@ -32,6 +32,20 @@ $$;
 
 
 --
+-- Name: document_text_pages_reject_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.document_text_pages_reject_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  RAISE EXCEPTION 'document_text_pages rows are immutable (% rejected)', TG_OP
+    USING ERRCODE = 'restrict_violation';
+END;
+$$;
+
+
+--
 -- Name: document_versions_reject_change(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -103,6 +117,54 @@ CREATE TABLE public.counterparties (
 );
 
 ALTER TABLE ONLY public.counterparties FORCE ROW LEVEL SECURITY;
+
+
+--
+-- Name: document_text_extractions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.document_text_extractions (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    tenant_id uuid NOT NULL,
+    document_version_id uuid NOT NULL,
+    status character varying DEFAULT 'pending'::character varying NOT NULL,
+    requested_by_id uuid,
+    page_count integer,
+    native_page_count integer,
+    ocr_page_count integer,
+    native_engine character varying,
+    ocr_engine character varying,
+    error_code character varying,
+    started_at timestamp(6) without time zone,
+    finished_at timestamp(6) without time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT document_text_extractions_error_code_check CHECK (((error_code IS NULL) OR ((error_code)::text = ANY ((ARRAY['unreadable_file'::character varying, 'encrypted_pdf'::character varying, 'too_many_pages'::character varying, 'timeout'::character varying, 'ocr_unavailable'::character varying, 'storage_unavailable'::character varying, 'abandoned'::character varying, 'internal_error'::character varying])::text[])))),
+    CONSTRAINT document_text_extractions_error_code_iff_failed CHECK ((((status)::text = 'failed'::text) = (error_code IS NOT NULL))),
+    CONSTRAINT document_text_extractions_status_check CHECK (((status)::text = ANY ((ARRAY['pending'::character varying, 'running'::character varying, 'succeeded'::character varying, 'failed'::character varying])::text[]))),
+    CONSTRAINT document_text_extractions_succeeded_counts CHECK ((((status)::text <> 'succeeded'::text) OR ((page_count >= 1) AND (native_page_count >= 0) AND (ocr_page_count >= 0) AND ((native_page_count + ocr_page_count) = page_count) AND (finished_at IS NOT NULL))))
+);
+
+ALTER TABLE ONLY public.document_text_extractions FORCE ROW LEVEL SECURITY;
+
+
+--
+-- Name: document_text_pages; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.document_text_pages (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    tenant_id uuid NOT NULL,
+    text_extraction_id uuid NOT NULL,
+    page_number integer NOT NULL,
+    source character varying NOT NULL,
+    text text NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT document_text_pages_page_number_positive CHECK ((page_number >= 1)),
+    CONSTRAINT document_text_pages_source_check CHECK (((source)::text = ANY ((ARRAY['native'::character varying, 'ocr'::character varying])::text[])))
+);
+
+ALTER TABLE ONLY public.document_text_pages FORCE ROW LEVEL SECURITY;
 
 
 --
@@ -319,6 +381,22 @@ ALTER TABLE ONLY public.counterparties
 
 
 --
+-- Name: document_text_extractions document_text_extractions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.document_text_extractions
+    ADD CONSTRAINT document_text_extractions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: document_text_pages document_text_pages_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.document_text_pages
+    ADD CONSTRAINT document_text_pages_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: document_versions document_versions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -426,10 +504,59 @@ CREATE UNIQUE INDEX idx_counterparties_unique_tax_id_per_tenant ON public.counte
 
 
 --
+-- Name: idx_document_text_extractions_id_tenant_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_document_text_extractions_id_tenant_id ON public.document_text_extractions USING btree (id, tenant_id);
+
+
+--
+-- Name: idx_document_text_extractions_one_active_per_version; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_document_text_extractions_one_active_per_version ON public.document_text_extractions USING btree (document_version_id) WHERE ((status)::text = ANY ((ARRAY['pending'::character varying, 'running'::character varying])::text[]));
+
+
+--
+-- Name: idx_document_text_extractions_version_id_tenant_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_document_text_extractions_version_id_tenant_id ON public.document_text_extractions USING btree (document_version_id, tenant_id);
+
+
+--
+-- Name: idx_document_text_extractions_version_latest; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_document_text_extractions_version_latest ON public.document_text_extractions USING btree (document_version_id, created_at);
+
+
+--
+-- Name: idx_document_text_pages_extraction_id_tenant_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_document_text_pages_extraction_id_tenant_id ON public.document_text_pages USING btree (text_extraction_id, tenant_id);
+
+
+--
+-- Name: idx_document_text_pages_unique_number_per_extraction; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_document_text_pages_unique_number_per_extraction ON public.document_text_pages USING btree (text_extraction_id, page_number);
+
+
+--
 -- Name: idx_document_versions_document_id_tenant_id; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_document_versions_document_id_tenant_id ON public.document_versions USING btree (contract_document_id, tenant_id);
+
+
+--
+-- Name: idx_document_versions_id_tenant_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_document_versions_id_tenant_id ON public.document_versions USING btree (id, tenant_id);
 
 
 --
@@ -521,6 +648,27 @@ CREATE INDEX index_contract_documents_on_tenant_id ON public.contract_documents 
 --
 
 CREATE INDEX index_counterparties_on_tenant_id ON public.counterparties USING btree (tenant_id);
+
+
+--
+-- Name: index_document_text_extractions_on_requested_by_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_document_text_extractions_on_requested_by_id ON public.document_text_extractions USING btree (requested_by_id);
+
+
+--
+-- Name: index_document_text_extractions_on_tenant_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_document_text_extractions_on_tenant_id ON public.document_text_extractions USING btree (tenant_id);
+
+
+--
+-- Name: index_document_text_pages_on_tenant_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_document_text_pages_on_tenant_id ON public.document_text_pages USING btree (tenant_id);
 
 
 --
@@ -636,6 +784,13 @@ CREATE UNIQUE INDEX index_users_on_reset_password_token ON public.users USING bt
 
 
 --
+-- Name: document_text_pages document_text_pages_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER document_text_pages_immutable BEFORE DELETE OR UPDATE ON public.document_text_pages FOR EACH ROW EXECUTE FUNCTION public.document_text_pages_reject_change();
+
+
+--
 -- Name: document_versions document_versions_immutable; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -648,6 +803,22 @@ CREATE TRIGGER document_versions_immutable BEFORE DELETE OR UPDATE ON public.doc
 
 ALTER TABLE ONLY public.contract_documents
     ADD CONSTRAINT fk_contract_documents_lease_same_tenant FOREIGN KEY (lease_id, tenant_id) REFERENCES public.leases(id, tenant_id);
+
+
+--
+-- Name: document_text_extractions fk_document_text_extractions_version_same_tenant; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.document_text_extractions
+    ADD CONSTRAINT fk_document_text_extractions_version_same_tenant FOREIGN KEY (document_version_id, tenant_id) REFERENCES public.document_versions(id, tenant_id);
+
+
+--
+-- Name: document_text_pages fk_document_text_pages_extraction_same_tenant; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.document_text_pages
+    ADD CONSTRAINT fk_document_text_pages_extraction_same_tenant FOREIGN KEY (text_extraction_id, tenant_id) REFERENCES public.document_text_extractions(id, tenant_id);
 
 
 --
@@ -683,6 +854,14 @@ ALTER TABLE ONLY public.leases
 
 
 --
+-- Name: document_text_pages fk_rails_0bbdc2333f; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.document_text_pages
+    ADD CONSTRAINT fk_rails_0bbdc2333f FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
+
+
+--
 -- Name: lease_parties fk_rails_3a6e0449ee; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -696,6 +875,14 @@ ALTER TABLE ONLY public.lease_parties
 
 ALTER TABLE ONLY public.leases
     ADD CONSTRAINT fk_rails_40598ae6e6 FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
+
+
+--
+-- Name: document_text_extractions fk_rails_431b5e0788; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.document_text_extractions
+    ADD CONSTRAINT fk_rails_431b5e0788 FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
 
 
 --
@@ -755,6 +942,14 @@ ALTER TABLE ONLY public.invitations
 
 
 --
+-- Name: document_text_extractions fk_rails_dda27541dd; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.document_text_extractions
+    ADD CONSTRAINT fk_rails_dda27541dd FOREIGN KEY (requested_by_id) REFERENCES public.users(id);
+
+
+--
 -- Name: counterparties fk_rails_f00102f981; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -802,6 +997,32 @@ ALTER TABLE public.counterparties ENABLE ROW LEVEL SECURITY;
 --
 
 CREATE POLICY counterparties_tenant_isolation ON public.counterparties USING ((tenant_id = public.app_current_tenant_id())) WITH CHECK ((tenant_id = public.app_current_tenant_id()));
+
+
+--
+-- Name: document_text_extractions; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.document_text_extractions ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: document_text_extractions document_text_extractions_tenant_isolation; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY document_text_extractions_tenant_isolation ON public.document_text_extractions USING ((tenant_id = public.app_current_tenant_id())) WITH CHECK ((tenant_id = public.app_current_tenant_id()));
+
+
+--
+-- Name: document_text_pages; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.document_text_pages ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: document_text_pages document_text_pages_tenant_isolation; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY document_text_pages_tenant_isolation ON public.document_text_pages USING ((tenant_id = public.app_current_tenant_id())) WITH CHECK ((tenant_id = public.app_current_tenant_id()));
 
 
 --
@@ -896,6 +1117,8 @@ CREATE POLICY properties_tenant_isolation ON public.properties USING ((tenant_id
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261031220001'),
+('20261031220000'),
 ('20261031200001'),
 ('20261031200000'),
 ('20261031180001'),
