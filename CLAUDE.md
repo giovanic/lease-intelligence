@@ -26,7 +26,7 @@ any critical contractual fact before it is treated as ground truth. See
 ## 2. REPOSITORY LAYOUT (ACTUAL, AS OF THIS INSPECTION)
 
 ```
-apps/api/   Rails 8 API-only app (Ruby 3.3.4). Identity & Tenancy
+apps/api/   Rails 8 API-only app (Ruby 3.3.13). Identity & Tenancy
             (users/tenants/memberships/invitations, RLS), session auth,
             Pundit, tenant context per request. No business domains yet.
 apps/web/   Vite + React 19 + TypeScript SPA. Login -> organization

@@ -2,7 +2,7 @@
 
 ## Prerequisites (actual, from inspected config)
 
-- Ruby 3.3.4 (`apps/api/.ruby-version`).
+- Ruby 3.3.13 (`apps/api/.ruby-version`).
 - PostgreSQL (`apps/api/config/database.yml`, `adapter: postgresql`).
 - Node.js + npm for `apps/web` (Vite 8, TypeScript ~7.0).
 - Redis — **only if** ADR-0006 is resolved in favor of Sidekiq; not
