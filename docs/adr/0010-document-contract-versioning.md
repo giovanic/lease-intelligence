@@ -59,5 +59,8 @@ potential legal/compliance inquiries.
 
 ## Implementation status
 
-**Decided, not implemented.** No `ContractDocument`, `DocumentVersion`, or
-`ContractualCondition` models exist yet.
+**Decided, partially implemented.** Document versioning (1) is
+implemented: `ContractDocument` + append-only `DocumentVersion`, whose
+UPDATE/DELETE a database trigger rejects (`docs/domain/documents.md`).
+Contractual condition versioning (2) is not: no `ContractualCondition`
+model exists yet.

@@ -45,6 +45,12 @@ module Api
     # silently lose all RLS protection. docs/adr/0003-postgresql-rls.md.
     config.active_record.schema_format = :sql
 
+    # Contract files use only Active Storage's service layer
+    # (docs/adr/0015). Its controllers would serve any blob to whoever
+    # holds a permanent signed id, with no authorization or tenant
+    # context — so none of its routes are drawn.
+    config.active_storage.draw_routes = false
+
     # The SPA authenticates with a Devise/Warden session in an httpOnly,
     # SameSite=Lax cookie (docs/adr/0013-spa-session-auth-and-tenant-selection.md).
     # api_only strips the cookie/session middleware, so it is re-added here

@@ -31,6 +31,20 @@ CREATE FUNCTION public.app_current_user_id() RETURNS uuid
 $$;
 
 
+--
+-- Name: document_versions_reject_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.document_versions_reject_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  RAISE EXCEPTION 'document_versions rows are immutable (% rejected)', TG_OP
+    USING ERRCODE = 'restrict_violation';
+END;
+$$;
+
+
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
@@ -45,6 +59,25 @@ CREATE TABLE public.ar_internal_metadata (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL
 );
+
+
+--
+-- Name: contract_documents; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.contract_documents (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    tenant_id uuid NOT NULL,
+    lease_id uuid NOT NULL,
+    kind character varying NOT NULL,
+    title character varying NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT contract_documents_kind_check CHECK (((kind)::text = ANY ((ARRAY['original_contract'::character varying, 'amendment'::character varying, 'other'::character varying])::text[]))),
+    CONSTRAINT contract_documents_title_present CHECK ((length(btrim((title)::text)) > 0))
+);
+
+ALTER TABLE ONLY public.contract_documents FORCE ROW LEVEL SECURITY;
 
 
 --
@@ -70,6 +103,32 @@ CREATE TABLE public.counterparties (
 );
 
 ALTER TABLE ONLY public.counterparties FORCE ROW LEVEL SECURITY;
+
+
+--
+-- Name: document_versions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.document_versions (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    tenant_id uuid NOT NULL,
+    contract_document_id uuid NOT NULL,
+    version_number integer NOT NULL,
+    storage_key character varying NOT NULL,
+    original_filename character varying NOT NULL,
+    content_type character varying NOT NULL,
+    byte_size bigint NOT NULL,
+    sha256 character varying(64) NOT NULL,
+    uploaded_by_id uuid NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT document_versions_byte_size_range CHECK (((byte_size >= 1) AND (byte_size <= 52428800))),
+    CONSTRAINT document_versions_content_type_check CHECK (((content_type)::text = ANY ((ARRAY['application/pdf'::character varying, 'image/jpeg'::character varying, 'image/png'::character varying, 'image/tiff'::character varying])::text[]))),
+    CONSTRAINT document_versions_original_filename_present CHECK ((length(btrim((original_filename)::text)) > 0)),
+    CONSTRAINT document_versions_sha256_format CHECK (((sha256)::text ~ '^[0-9a-f]{64}$'::text)),
+    CONSTRAINT document_versions_version_number_positive CHECK ((version_number >= 1))
+);
+
+ALTER TABLE ONLY public.document_versions FORCE ROW LEVEL SECURITY;
 
 
 --
@@ -244,11 +303,27 @@ ALTER TABLE ONLY public.ar_internal_metadata
 
 
 --
+-- Name: contract_documents contract_documents_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contract_documents
+    ADD CONSTRAINT contract_documents_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: counterparties counterparties_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.counterparties
     ADD CONSTRAINT counterparties_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: document_versions document_versions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.document_versions
+    ADD CONSTRAINT document_versions_pkey PRIMARY KEY (id);
 
 
 --
@@ -316,6 +391,27 @@ ALTER TABLE ONLY public.users
 
 
 --
+-- Name: idx_contract_documents_id_tenant_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_contract_documents_id_tenant_id ON public.contract_documents USING btree (id, tenant_id);
+
+
+--
+-- Name: idx_contract_documents_lease_id_tenant_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_contract_documents_lease_id_tenant_id ON public.contract_documents USING btree (lease_id, tenant_id);
+
+
+--
+-- Name: idx_contract_documents_one_original_per_lease; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_contract_documents_one_original_per_lease ON public.contract_documents USING btree (lease_id) WHERE ((kind)::text = 'original_contract'::text);
+
+
+--
 -- Name: idx_counterparties_id_tenant_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -327,6 +423,27 @@ CREATE UNIQUE INDEX idx_counterparties_id_tenant_id ON public.counterparties USI
 --
 
 CREATE UNIQUE INDEX idx_counterparties_unique_tax_id_per_tenant ON public.counterparties USING btree (tenant_id, tax_id) WHERE (tax_id IS NOT NULL);
+
+
+--
+-- Name: idx_document_versions_document_id_tenant_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_document_versions_document_id_tenant_id ON public.document_versions USING btree (contract_document_id, tenant_id);
+
+
+--
+-- Name: idx_document_versions_unique_number_per_document; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_document_versions_unique_number_per_document ON public.document_versions USING btree (contract_document_id, version_number);
+
+
+--
+-- Name: idx_document_versions_unique_sha256_per_tenant; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_document_versions_unique_sha256_per_tenant ON public.document_versions USING btree (tenant_id, sha256);
 
 
 --
@@ -393,10 +510,38 @@ CREATE UNIQUE INDEX idx_properties_unique_code_per_tenant ON public.properties U
 
 
 --
+-- Name: index_contract_documents_on_tenant_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_contract_documents_on_tenant_id ON public.contract_documents USING btree (tenant_id);
+
+
+--
 -- Name: index_counterparties_on_tenant_id; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX index_counterparties_on_tenant_id ON public.counterparties USING btree (tenant_id);
+
+
+--
+-- Name: index_document_versions_on_storage_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_document_versions_on_storage_key ON public.document_versions USING btree (storage_key);
+
+
+--
+-- Name: index_document_versions_on_tenant_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_document_versions_on_tenant_id ON public.document_versions USING btree (tenant_id);
+
+
+--
+-- Name: index_document_versions_on_uploaded_by_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_document_versions_on_uploaded_by_id ON public.document_versions USING btree (uploaded_by_id);
 
 
 --
@@ -491,6 +636,29 @@ CREATE UNIQUE INDEX index_users_on_reset_password_token ON public.users USING bt
 
 
 --
+-- Name: document_versions document_versions_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER document_versions_immutable BEFORE DELETE OR UPDATE ON public.document_versions FOR EACH ROW EXECUTE FUNCTION public.document_versions_reject_change();
+
+
+--
+-- Name: contract_documents fk_contract_documents_lease_same_tenant; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contract_documents
+    ADD CONSTRAINT fk_contract_documents_lease_same_tenant FOREIGN KEY (lease_id, tenant_id) REFERENCES public.leases(id, tenant_id);
+
+
+--
+-- Name: document_versions fk_document_versions_document_same_tenant; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.document_versions
+    ADD CONSTRAINT fk_document_versions_document_same_tenant FOREIGN KEY (contract_document_id, tenant_id) REFERENCES public.contract_documents(id, tenant_id);
+
+
+--
 -- Name: lease_parties fk_lease_parties_counterparty_same_tenant; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -531,6 +699,22 @@ ALTER TABLE ONLY public.leases
 
 
 --
+-- Name: document_versions fk_rails_573b17c257; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.document_versions
+    ADD CONSTRAINT fk_rails_573b17c257 FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
+
+
+--
+-- Name: document_versions fk_rails_5bd5022cab; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.document_versions
+    ADD CONSTRAINT fk_rails_5bd5022cab FOREIGN KEY (uploaded_by_id) REFERENCES public.users(id);
+
+
+--
 -- Name: memberships fk_rails_99326fb65d; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -544,6 +728,14 @@ ALTER TABLE ONLY public.memberships
 
 ALTER TABLE ONLY public.memberships
     ADD CONSTRAINT fk_rails_a959f0d1fb FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
+
+
+--
+-- Name: contract_documents fk_rails_bb194abc09; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contract_documents
+    ADD CONSTRAINT fk_rails_bb194abc09 FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
 
 
 --
@@ -587,6 +779,19 @@ ALTER TABLE ONLY public.memberships
 
 
 --
+-- Name: contract_documents; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.contract_documents ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: contract_documents contract_documents_tenant_isolation; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY contract_documents_tenant_isolation ON public.contract_documents USING ((tenant_id = public.app_current_tenant_id())) WITH CHECK ((tenant_id = public.app_current_tenant_id()));
+
+
+--
 -- Name: counterparties; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -597,6 +802,19 @@ ALTER TABLE public.counterparties ENABLE ROW LEVEL SECURITY;
 --
 
 CREATE POLICY counterparties_tenant_isolation ON public.counterparties USING ((tenant_id = public.app_current_tenant_id())) WITH CHECK ((tenant_id = public.app_current_tenant_id()));
+
+
+--
+-- Name: document_versions; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.document_versions ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: document_versions document_versions_tenant_isolation; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY document_versions_tenant_isolation ON public.document_versions USING ((tenant_id = public.app_current_tenant_id())) WITH CHECK ((tenant_id = public.app_current_tenant_id()));
 
 
 --
@@ -678,6 +896,8 @@ CREATE POLICY properties_tenant_isolation ON public.properties USING ((tenant_id
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261031200001'),
+('20261031200000'),
 ('20261031180001'),
 ('20261031180000'),
 ('20261031150001'),

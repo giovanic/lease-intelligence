@@ -3,8 +3,10 @@
 Status: planned scope. Implemented so far: organizations/users/
 memberships (sign-in + tenant selection; no invitations flow yet),
 Portfolio (properties, counterparties) and Lease Management's
-registration (lease + property + parties, no terms) — API and SPA
-screens. Everything else is planned.
+registration (lease + property + parties, no terms) and Document
+Management & Versioning (upload of contracts/amendments, immutable
+versions, private file access) — API and SPA screens. Everything else is
+planned.
 
 ## In scope for MVP
 

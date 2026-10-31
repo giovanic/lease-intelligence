@@ -30,6 +30,13 @@ threads threads_count, threads_count
 # Specifies the `port` that Puma will listen on to receive requests; default is 3000.
 port ENV.fetch("PORT", 3000)
 
+# Largest request body Puma accepts (413 otherwise, also for chunked
+# bodies), checked before Rails parses anything: Rails parses a multipart
+# body — writing it to a tempfile — even for a request that is then
+# rejected as unauthenticated. 50 MB contract file (DocumentVersion::
+# MAX_BYTE_SIZE) + room for the multipart envelope; no endpoint needs more.
+http_content_length_limit 51 * 1024 * 1024
+
 # Allow puma to be restarted by `bin/rails restart` command.
 plugin :tmp_restart
 

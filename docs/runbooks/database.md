@@ -16,7 +16,10 @@ with RLS + a unique `(id, tenant_id)` index. Leases use them:
 at properties/counterparties/leases through composite foreign keys on
 `(id, tenant_id)` (`fk_leases_property_same_tenant`,
 `fk_lease_parties_*_same_tenant`) — the reference pattern for any child
-of a tenant-owned table. No other module's tables exist yet.
+of a tenant-owned table. Documents (`contract_documents`,
+`document_versions`) follow the same pattern, and `document_versions` adds
+an immutability trigger (rejects UPDATE/DELETE) — `TRUNCATE` is not
+blocked by it. No other module's tables exist yet.
 
 `db/structure.sql` must load on the CI's PostgreSQL 16: a dump made by a
 newer local server/`pg_dump` may add `SET transaction_timeout = 0;`

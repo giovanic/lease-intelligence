@@ -48,7 +48,10 @@ integrity verification independent of the storage layer.
 
 ## Implementation status
 
-**Decided, not implemented.** `apps/api/config/storage.yml` exists only
-as the Rails default template; no S3-compatible service is configured, no
-signed-URL issuance flow exists, and no `ContractDocument`/
-`DocumentVersion` model exists to attach files to.
+**Decided, partially implemented.** Contract files are stored through
+Active Storage's service layer and reached only via app-issued 5-minute
+links after authorization — see ADR-0015 for how (no blobs/attachments
+tables, no Active Storage routes). Still missing: an S3-compatible
+private service — development, test **and production** use the Disk
+services in `config/storage.yml`; configuring the bucket is a deployment
+task.

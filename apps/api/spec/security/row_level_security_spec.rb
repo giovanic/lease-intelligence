@@ -109,6 +109,24 @@ RSpec.describe "Row-Level Security", type: :model do
       insert_columns: "tenant_id, lease_id, counterparty_id, role, created_at, updated_at",
       insert_values: "gen_random_uuid(), gen_random_uuid(), 'lessor', now(), now()",
       update_set: "role = 'guarantor'"
+    },
+    "contract_documents" => {
+      factory: :contract_document,
+      insert_columns: "tenant_id, lease_id, kind, title, created_at, updated_at",
+      insert_values: "gen_random_uuid(), 'amendment', 'Aditivo X', now(), now()",
+      update_set: "title = 'hijacked'"
+    },
+    "document_versions" => {
+      factory: :document_version,
+      create: ->(tenant) { create(:document_version, contract_document: create(:contract_document, tenant: tenant)) },
+      insert_columns: "tenant_id, contract_document_id, version_number, storage_key, original_filename, " \
+        "content_type, byte_size, sha256, uploaded_by_id, created_at",
+      insert_values: "gen_random_uuid(), 1, gen_random_uuid()::text, 'x.pdf', 'application/pdf', 10, " \
+        "encode(sha256(gen_random_uuid()::text::bytea), 'hex'), gen_random_uuid(), now()",
+      update_set: "original_filename = 'hijacked.pdf'",
+      # Versions are immutable: the BEFORE UPDATE trigger rejects the move
+      # even before the RLS WITH CHECK would.
+      move_error: /row-level security|document_versions rows are immutable/
     }
   }.each do |table, config|
     describe "#{table} (raw SQL)" do
@@ -164,7 +182,7 @@ RSpec.describe "Row-Level Security", type: :model do
               "UPDATE #{table} SET tenant_id = #{connection.quote(tenant_b.id)} WHERE id = #{connection.quote(row_a.id)}"
             )
           end
-        }.to raise_error(ActiveRecord::StatementInvalid, /row-level security/)
+        }.to raise_error(ActiveRecord::StatementInvalid, config.fetch(:move_error, /row-level security/))
       end
     end
   end

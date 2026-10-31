@@ -21,6 +21,11 @@ export class ApiError extends Error {
 
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'
+  /**
+   * Sent as JSON, or as multipart/form-data when a FormData (file uploads —
+   * accepted only by endpoints that opt in, see the API's
+   * RequestOriginVerification).
+   */
   body?: unknown
   /** Sent as X-Tenant-Id. The backend validates it against the user's memberships. */
   tenantId?: string
@@ -42,8 +47,14 @@ export async function apiRequestPage<T>(path: string, options: RequestOptions = 
 
 async function send(path: string, options: RequestOptions): Promise<unknown> {
   const headers: Record<string, string> = { Accept: 'application/json' }
-  if (options.body !== undefined) headers['Content-Type'] = 'application/json'
+  const multipart = options.body instanceof FormData
+  // For FormData the browser sets multipart/form-data with its boundary.
+  if (options.body !== undefined && !multipart) headers['Content-Type'] = 'application/json'
   if (options.tenantId) headers['X-Tenant-Id'] = options.tenantId
+
+  let body: BodyInit | undefined
+  if (options.body instanceof FormData) body = options.body
+  else if (options.body !== undefined) body = JSON.stringify(options.body)
 
   let response: Response
   try {
@@ -51,7 +62,7 @@ async function send(path: string, options: RequestOptions): Promise<unknown> {
       method: options.method ?? 'GET',
       headers,
       credentials: 'same-origin',
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      body,
     })
   } catch {
     throw new ApiError(0, 'network_error', 'Não foi possível conectar ao servidor.')

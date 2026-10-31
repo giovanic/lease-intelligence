@@ -405,6 +405,43 @@ a.button {
   align-self: center;
 }
 
+.section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* A document of a lease with its version history (features/documents). */
+.document {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid #e5e9f0;
+}
+
+.document__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.document__header > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.document__title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
 .details {
   display: grid;
   grid-template-columns: 160px 1fr;
