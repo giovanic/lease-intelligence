@@ -91,6 +91,9 @@ Devise.setup do |config|
   # to behave the same regardless if the e-mail provided was right or wrong.
   # Does not affect registerable.
   # config.paranoid = true
+  # Uniform responses so auth endpoints don't reveal which emails exist
+  # (docs/adr/0013-spa-session-auth-and-tenant-selection.md).
+  config.paranoid = true
 
   # By default Devise will store the user in session. You can skip storage for
   # particular strategies by setting this option.
@@ -192,6 +195,8 @@ Devise.setup do |config|
   # The time you want to timeout the user session without activity. After this
   # time the user will be asked for credentials again. Default is 30 minutes.
   # config.timeout_in = 30.minutes
+  # Idle session expiry, enforced server-side by :timeoutable (ADR-0013).
+  config.timeout_in = 8.hours
 
   # ==> Configuration for :lockable
   # Defines which strategy will be used to lock an account.
@@ -267,6 +272,8 @@ Devise.setup do |config|
   #
   # The "*/*" below is required to match Internet Explorer requests.
   # config.navigational_formats = ['*/*', :html, :turbo_stream]
+  # API-only: never redirect to a sign-in page, always answer 401.
+  config.navigational_formats = []
 
   # The default HTTP method used to sign out a resource. Default is :delete.
   config.sign_out_via = :delete
@@ -280,6 +287,12 @@ Devise.setup do |config|
   # If you want to use other strategies, that are not supported by Devise, or
   # change the failure app, you can configure them inside the config.warden block.
   #
+  # Render 401s in the API's JSON error envelope. Resolved lazily so the
+  # autoloaded constant stays reloadable in development.
+  config.warden do |manager|
+    manager.failure_app = ->(env) { AuthenticationFailureApp.call(env) }
+  end
+
   # config.warden do |warden_config|
   #   warden_config.intercept_401 = false
   #   warden_config.default_strategies(scope: :user).unshift :some_external_strategy

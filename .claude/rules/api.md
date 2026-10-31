@@ -27,6 +27,12 @@ applies_to: apps/api/app/controllers/**, apps/api/config/routes.rb
   comments are not sufficient for an API contract — prefer a request spec
   that encodes the contract, plus any API documentation convention
   adopted later).
-- CORS must be explicitly configured (currently missing — see root
-  `CLAUDE.md` §3) before this API can be called from `apps/web` across
-  origins in development.
+- The SPA calls the API same-origin (ADR-0013) — no CORS. Do not add
+  `rack-cors` or cross-origin credentials without revisiting ADR-0013.
+- Error envelope: `{ "error": { "code", "message" } }` via
+  `render_error`; success: `{ "data": ... }`. JSON shapes come from
+  explicit serializer classes in `app/serializers`, never `to_json` on a
+  model.
+- Tenant-scoped controllers `include TenantScoped` (reads `X-Tenant-Id`,
+  validates membership, runs the action in `TenantContext`). Every action
+  calls `authorize` or `skip_authorization` with a comment saying why.

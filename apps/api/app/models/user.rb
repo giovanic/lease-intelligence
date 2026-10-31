@@ -2,7 +2,7 @@
 # user's access to any tenant is expressed entirely through `memberships`.
 class User < ApplicationRecord
   devise :database_authenticatable, :registerable,
-    :recoverable, :rememberable, :validatable, :trackable
+    :recoverable, :rememberable, :validatable, :trackable, :timeoutable
 
   has_many :memberships, dependent: :restrict_with_error, inverse_of: :user
   has_many :tenants, through: :memberships

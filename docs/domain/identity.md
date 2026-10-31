@@ -3,9 +3,9 @@
 Status: **implemented** (schema, models, RLS, tests). `User`, `Tenant`,
 `Membership`, `Invitation` exist in `apps/api/db/migrate/202610311332*`
 and `apps/api/app/models/`. Devise is installed and the `User` model uses
-it. Pundit is still only declared in the `Gemfile`, not installed — no
-policies exist yet, since there are no controllers in this data-layer
-phase.
+it. Authentication, tenant selection and Pundit are implemented at the
+API level per ADR-0013 (`/api/v1/session`, `/api/v1/me`,
+`/api/v1/current_membership`).
 
 ## Entities (as implemented)
 
@@ -49,9 +49,10 @@ see `docs/adr/0003-postgresql-rls.md` addendum and
 
 ## Authorization model
 
-Not yet implemented — no Pundit policies exist (no controllers in this
-data-layer phase). When built: policies receive `(user, membership,
-record)` context and decide allow/deny per action. Role granularity
+Pundit installed. Policies receive an `AuthorizationContext(user,
+membership)` (membership is nil outside tenant-scoped endpoints) and
+decide allow/deny per action; `ApplicationPolicy` denies everything by
+default. Only `UserPolicy#show?` and `MembershipPolicy#show?` exist so far. Role granularity
 within a tenant is enforced in policies, not scattered as ad hoc
 `if current_user.admin?` checks in controllers.
 

@@ -55,14 +55,19 @@ build on top of them silently; surface them when relevant:
    (`apps/api/CLAUDE.md` §4) mandate Sidekiq + Redis for background
    processing. **Pick one and remove the other** before writing jobs — see
    ADR-006.
-2. **No CORS configured.** The app is `config.api_only = true` and will be
-   called from `apps/web` (a separate origin in dev). `rack-cors` is not in
-   the `Gemfile` (only commented out) and `config/initializers/cors.rb` is
-   the unmodified template. This must be fixed before the frontend can call
-   the API cross-origin.
-3. **Devise is installed (`User` model, `devise:install` run); Pundit is
-   still not.** No `ApplicationPolicy`, no initializers — because no
-   controllers exist yet in the current data-layer phase.
+2. **CORS: resolved by design, not by `rack-cors` (ADR-0013).** The SPA
+   is served same-origin (Vite proxies `/api` in dev, a reverse proxy in
+   prod), so the session cookie is first-party and no CORS is needed. The
+   Vite proxy itself is **not configured yet** (frontend phase) — until
+   then the SPA cannot call the API. `config/initializers/cors.rb` stays
+   the unused template; do not add `rack-cors` without revisiting ADR-0013.
+3. **Auth + tenant context are implemented (API only, ADR-0013).** Devise
+   session in an httpOnly cookie (`/api/v1/session`, `/api/v1/me`),
+   Pundit installed (`ApplicationPolicy` deny-by-default,
+   `verify_authorized` on every action, `AuthorizationContext(user,
+   membership)`), `TenantScoped` concern resolving `X-Tenant-Id` against
+   active memberships, Rack::Attack on sign-in. Not built: sign-up/org
+   creation, invitation acceptance, password reset, the SPA login screen.
 4. **No local orchestration.** `infrastructure/` is empty — no
    `docker-compose.yml` for Postgres/Redis/local dev. `apps/api/Dockerfile`
    is production-only (Kamal-oriented).
@@ -76,10 +81,14 @@ build on top of them silently; surface them when relevant:
    `config.active_record.schema_format` is now `:sql`
    (`db/structure.sql`), required for RLS to survive `db:test:prepare` —
    see the runbook.
-6. **Git state is unusual.** `apps/api` has its own nested `.git` with zero
-   commits (everything untracked). There is no `.git` at the repo root.
-   Confirm the intended repository topology (single repo vs. per-app repos)
-   with the user before making commits that assume one or the other.
+6. **Git topology: single monorepo at the root.** The nested
+   `apps/api/.git` no longer exists; commit everything from the root
+   repository, one branch per phase (§5).
+7. **`json` gem pinned to `~> 2.16`** in `apps/api/Gemfile`: json 3.x
+   breaks ActiveSupport 8.0's encoder (`unknown keyword: quirks_mode` on
+   every `render json:`). Remove the pin only together with a Rails
+   upgrade that fixes it. Rails 8.0 support ends 2026-11-07 (Brakeman
+   EOLRails warning) — plan the upgrade.
 
 ## 4. NON-NEGOTIABLE SAFETY RULES
 
@@ -118,6 +127,15 @@ code → identify domain + tenant/security impact → plan → identify tests �
 (get approval for architectural changes) → implement → validate → update
 docs → report. Use the `implement-feature` skill as the entry point for
 non-trivial feature work.
+
+**Branch per phase (mandatory):** every time a new development phase
+starts (e.g. authentication, documents upload, OCR pipeline, frontend
+shell), create a new branch for it from an up-to-date `main` *before*
+writing any code — never start a new phase on `main` or on the previous
+phase's branch. Name it `phase/<short-kebab-name>` (or `feat/`, `fix/`,
+`chore/` for work smaller than a phase). Confirm the repository topology
+(§3, item 6) first if it is still unresolved. Do not commit or push
+unless the user asks.
 
 ## 6. QUALITY GATES (see docs/runbooks/testing.md for exact commands)
 

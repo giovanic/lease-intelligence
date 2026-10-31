@@ -47,4 +47,37 @@ RSpec.describe TenantContext do
   it "requires a block" do
     expect { described_class.activate(tenant: tenant) }.to raise_error(ArgumentError)
   end
+
+  # Regression: during a request Rails enables the query cache, and an
+  # identical `SELECT set_config(...)` was served from the cache instead of
+  # being executed — so switching A -> B -> A stayed on B, and the reset in
+  # `ensure` was skipped, leaving the tenant active after the block.
+  describe "with the query cache enabled (as inside every request)" do
+    around { |example| ActiveRecord::Base.cache { example.run } }
+
+    def db_setting(name)
+      ActiveRecord::Base.connection.uncached do
+        ActiveRecord::Base.connection.select_value("SELECT current_setting('#{name}', true)")
+      end
+    end
+
+    it "really switches context when the same tenant is activated again" do
+      other_tenant = create(:tenant)
+
+      described_class.activate(tenant: tenant, user: user) { nil }
+      described_class.activate(tenant: other_tenant, user: user) { nil }
+      described_class.activate(tenant: tenant, user: user) do
+        expect(db_setting("app.current_tenant_id")).to eq(tenant.id)
+        expect(db_setting("app.current_user_id")).to eq(user.id)
+      end
+    end
+
+    it "really clears the context after the block" do
+      described_class.activate(user: user) { nil }
+      described_class.activate(tenant: tenant, user: user) { nil }
+
+      expect(db_setting("app.current_tenant_id")).to be_blank
+      expect(db_setting("app.current_user_id")).to be_blank
+    end
+  end
 end
