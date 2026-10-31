@@ -28,7 +28,8 @@ any critical contractual fact before it is treated as ground truth. See
 ```
 apps/api/   Rails 8 API-only app (Ruby 3.3.13). Identity & Tenancy
             (users/tenants/memberships/invitations, RLS), session auth,
-            Pundit, tenant context per request. No business domains yet.
+            Pundit, tenant context per request. Portfolio domain API
+            (properties, counterparties). No leases/documents yet.
 apps/web/   Vite + React 19 + TypeScript SPA. Login -> organization
             picker -> workspace shell; services/ API client; no router.
 .github/    CI (workflows/ci.yml) + dependabot, at the repo root.
@@ -47,16 +48,14 @@ Do not assume anything beyond this exists. If a document describes a
 These were found during harness setup and are **not yet fixed** — do not
 build on top of them silently; surface them when relevant:
 
-1. **Background processing is ambiguous.** `Gemfile` includes both the
-   Rails 8 default (`solid_queue`, `solid_cache`, `solid_cable`, DB-backed,
-   already wired as `config.active_job.queue_adapter` in
-   `config/environments/production.rb`) **and** `sidekiq` (~> 8.1, with
-   `redis-client` as a transitive dependency) — but Sidekiq is not wired as
-   the ActiveJob adapter anywhere, and there is no Redis service, no
-   `config/sidekiq.yml`, no Sidekiq initializer. The product instructions
-   (`apps/api/CLAUDE.md` §4) mandate Sidekiq + Redis for background
-   processing. **Pick one and remove the other** before writing jobs — see
-   ADR-006.
+1. **Background processing: resolved — Sidekiq + Redis (ADR-0006).**
+   Solid Queue was removed; `config.active_job.queue_adapter = :sidekiq`
+   (`:test` in specs), worker via `apps/api/bin/jobs`. Jobs that touch
+   tenant data use `ApplicationJob#within_tenant(tenant_id)`, which fails
+   loudly without a valid active tenant. `solid_cache`/`solid_cable`
+   remain (cache/cable, not jobs). Still open: no Sidekiq Web UI, no
+   periodic jobs (Sidekiq OSS has no cron), Redis is not in CI (not
+   needed — specs use the test adapter).
 2. **CORS: resolved by design, not by `rack-cors` (ADR-0013).** The SPA
    is served same-origin (Vite proxies `/api` in dev, a reverse proxy in
    prod), so the session cookie is first-party and no CORS is needed. The
@@ -76,8 +75,9 @@ build on top of them silently; surface them when relevant:
    is production-only (Kamal-oriented).
 5. **RLS and the Identity & Tenancy schema are now implemented**
    (`tenants`, `users`, `memberships`, `invitations` — see
-   `docs/domain/identity.md`, `docs/adr/0003-postgresql-rls.md`). Every
-   other module (Portfolio, Lease Management, Document Management,
+   `docs/domain/identity.md`, `docs/adr/0003-postgresql-rls.md`), and so
+   is Portfolio (`properties`, `counterparties` — `docs/domain/portfolio.md`).
+   Every other module (Lease Management, Document Management,
    Contract Intelligence, Obligations, Audit & Security) is still
    unimplemented and must repeat the RLS checklist in
    `docs/runbooks/database.md` independently — nothing is automatic. Note

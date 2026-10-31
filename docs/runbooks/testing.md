@@ -2,16 +2,13 @@
 
 ## Current state
 
-Zero application-level tests exist. `apps/api/spec/` has only the
-generated `rails_helper.rb`/`spec_helper.rb` (RSpec is installed via
-`rspec-rails` in the Gemfile but `rspec:install` has not been run to
-generate `.rspec`'s full config — `.rspec` currently only contains
-`--require spec_helper`). `apps/api/test/` (Minitest, Rails' other
-default) still exists side by side with empty directories — decide and
-remove one before writing real tests, to avoid two parallel, confusing
-test setups. `apps/web` has no test runner installed at all.
+RSpec is the backend framework (`apps/api/spec/`: models, policies,
+requests, services, security); there is no `apps/api/test/`. Specs that
+touch tenant-owned rows wrap them in `with_tenant(...)`
+(`spec/support/tenant_context_helper.rb`) — FORCE RLS applies to the test
+role too. `apps/web` has no test runner installed at all.
 
-## Backend commands (verified present, not yet exercised against domain code)
+## Backend commands (verified, exercised against Identity & Portfolio)
 
 ```
 cd apps/api
@@ -50,8 +47,8 @@ background jobs, document processing, contract versioning, financial
 calculations, review workflows. For security-sensitive features, test both
 the permitted and the denied path explicitly.
 
-## Tenant isolation test pattern (to establish when the first tenant-owned
-model exists)
+## Tenant isolation test pattern (established — copy it for each new
+tenant-owned model)
 
 At minimum three layers: (1) policy spec proving deny for a
 cross-tenant actor, (2) request spec proving a cross-tenant request
@@ -59,6 +56,15 @@ returns 403/404 rather than leaking data, (3) a raw-SQL-level spec that
 sets a different tenant context and proves Postgres RLS itself refuses
 the row, independent of any Rails-level authorization code. See
 `.claude/rules/multi-tenancy.md` and the `tenant-isolation-review` skill.
+
+Reference implementation (Portfolio): `spec/support/portfolio_policy_examples.rb`
+(role matrix + cross-tenant deny + Scope), `spec/requests/api/v1/properties_spec.rb`
+(cross-tenant show/update is a 404 identical to a nonexistent id, header
+for another tenant is a 403, body `tenant_id` ignored, connection left
+clean), and the raw-SQL blocks in `spec/security/row_level_security_spec.rb`
+(SELECT/UPDATE/DELETE/INSERT/tenant-move denied with no model involved).
+When asserting a database error inside `with_tenant`, put the `expect {}`
+*outside* the block so the savepoint rolls back.
 
 ## Do not
 

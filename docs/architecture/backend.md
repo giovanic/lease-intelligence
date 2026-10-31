@@ -6,9 +6,9 @@ only has `ApplicationController`).
 
 ## Stack as actually declared in `apps/api/Gemfile`
 
-Rails ~> 8.0.5, pg, puma, Devise 5, Pundit 2.5, Sidekiq 8.1 (unwired — see
-ADR-006), solid_cache/solid_queue/solid_cable (Rails 8 defaults, currently
-the wired ActiveJob adapter), rack-attack, rspec-rails 8, factory_bot_rails
+Rails ~> 8.0.5, pg, puma, Devise 5, Pundit 2.5, Sidekiq 8.1 (the Active
+Job adapter — ADR-006), solid_cache/solid_cable (Rails 8 defaults for
+cache and Action Cable), rack-attack, rspec-rails 8, factory_bot_rails
 6.5, shoulda-matchers 8, brakeman, rubocop-rails-omakase, bootsnap, kamal,
 thruster.
 
@@ -58,7 +58,12 @@ and must surface terminal failures to a reviewable status, not swallow them.
 
 ## What does not exist yet (do not assume)
 
-No serializer library (plain serializer classes in `app/serializers`), no
-pagination helper in place. Domain code so far lives in
-`app/services/identity/`; services return `ServiceResult`. Rack::Attack
-only throttles sign-in (`config/initializers/rack_attack.rb`).
+No serializer library (plain serializer classes in `app/serializers`).
+Pagination is the in-house `Paginated` controller concern (offset,
+`?page=&per_page=` up to 100, `meta` with totals; invalid values are 400)
+— no pagination gem. Domain code lives in `app/services/identity/` and
+`app/services/portfolio/` (services + query objects); services return
+`ServiceResult` (validation failures carry the model's
+`ActiveModel::Errors`, rendered as 422 `validation_failed` with
+`details`). Tenant-owned record policies inherit `TenantOwnedPolicy`.
+Rack::Attack only throttles sign-in (`config/initializers/rack_attack.rb`).

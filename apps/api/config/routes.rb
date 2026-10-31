@@ -8,6 +8,11 @@ Rails.application.routes.draw do
       resource :session, only: %i[create destroy]
       resource :me, only: :show, controller: "me"
       resource :current_membership, only: :show
+
+      # Portfolio (docs/domain/portfolio.md). No destroy: records are
+      # archived through `status`, since leases will reference them.
+      resources :properties, only: %i[index show create update]
+      resources :counterparties, only: %i[index show create update]
     end
   end
 

@@ -5,13 +5,12 @@
 - Ruby 3.3.13 (`apps/api/.ruby-version`).
 - PostgreSQL (`apps/api/config/database.yml`, `adapter: postgresql`).
 - Node.js + npm for `apps/web` (Vite 8, TypeScript ~7.0).
-- Redis — **only if** ADR-0006 is resolved in favor of Sidekiq; not
-  currently required to boot the app since Solid Queue (DB-backed) is the
-  wired ActiveJob adapter today.
+- Redis (ADR-0006) — needed to enqueue and run jobs, not to boot the API
+  or run the specs. Local: `redis-server` (default
+  `redis://localhost:6379/0`, override with `REDIS_URL`). Worker:
+  `cd apps/api && bin/jobs`.
 - No `infrastructure/docker-compose.yml` exists yet — there is currently
-  no one-command way to stand up Postgres (and Redis, if chosen) locally.
-  Creating one is a reasonable first infra task, once ADR-0006 is
-  resolved.
+  no one-command way to stand up Postgres and Redis locally.
 
 ## Standard feature workflow
 

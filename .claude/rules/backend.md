@@ -32,8 +32,8 @@ applies_to: apps/api/**
   timeouts/rate limits/malformed responses explicitly through the
   provider abstraction (ADR-0008, ADR-0009), not ad hoc per call site.
 - Before adding a gem: state the architectural justification (per root
-  `CLAUDE.md` §4/§9). Check `apps/api/Gemfile` first — the Sidekiq/Solid
-  Queue conflict (ADR-0006) exists precisely because this wasn't done
-  rigorously; don't repeat that pattern.
+  `CLAUDE.md` §4/§9). Check `apps/api/Gemfile` first — the former Sidekiq/Solid
+  Queue conflict (ADR-0006, now resolved for Sidekiq) existed precisely
+  because this wasn't done rigorously; don't repeat that pattern.
 - Run `bin/rubocop` (Omakase style, already configured) and
   `bin/brakeman --no-pager` before considering backend work done.

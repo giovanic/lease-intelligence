@@ -13,11 +13,12 @@ middleware.
 
 ## "Which background job adapter is actually running my job?"
 
-Check `config/environments/<env>.rb` for `config.active_job.queue_adapter`.
-As of this inspection, production.rb sets `:solid_queue`, but the Gemfile
-also includes `sidekiq`. If a job silently runs via Solid Queue when you
-expected Sidekiq (or vice versa), this is the unresolved ADR-0006 conflict
-— resolve the ADR, don't just patch around the symptom.
+Sidekiq in every environment (`config/application.rb`), the `:test`
+adapter in specs (`config/environments/test.rb`) — ADR-0006. A job that is
+enqueued but never runs usually means no worker (`bin/jobs`) or the worker
+and the API point at different Redis databases (`REDIS_URL`). A job that
+raises `ApplicationJob::TenantContextError` was enqueued without a valid,
+active tenant id — fix the caller, never add a fallback tenant.
 
 ## "RLS is blocking a query I expect to succeed"
 

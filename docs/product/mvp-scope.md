@@ -1,6 +1,8 @@
 # MVP Scope
 
-Status: planned scope. Nothing below is implemented yet.
+Status: planned scope. Implemented so far (API): organizations/users/
+memberships (sign-in + tenant selection; no invitations flow yet) and
+Portfolio (properties, counterparties). Everything else is planned.
 
 ## In scope for MVP
 
