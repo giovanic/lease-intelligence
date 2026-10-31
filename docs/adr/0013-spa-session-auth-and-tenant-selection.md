@@ -42,6 +42,10 @@ protected by three independent layers instead of Rails' form-token CSRF
    `Sec-Fetch-Site: cross-site` header, is rejected with 403.
 3. Write endpoints only accept `application/json`, which a cross-site
    HTML form cannot send without a CORS preflight the API never grants.
+   Exception (ADR-0015): the document upload actions declare
+   `accepts_multipart_body`, allowed only on `TenantScoped` controllers —
+   their required `X-Tenant-Id` header is itself a custom header a
+   cross-site form cannot set without that same preflight.
 
 **Same-origin deployment, no CORS.** The SPA is served from the same
 origin as the API: in development the Vite dev server proxies `/api` to

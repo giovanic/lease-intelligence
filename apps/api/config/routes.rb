@@ -16,7 +16,21 @@ Rails.application.routes.draw do
 
       # Lease Management (docs/domain/leases.md). No destroy: a lease ends
       # through its status (expired/terminated).
-      resources :leases, only: %i[index show create update]
+      resources :leases, only: %i[index show create update] do
+        # Document Management (docs/domain/documents.md). No update/destroy:
+        # files are immutable versions (docs/adr/0010).
+        resources :documents, only: %i[index show create], controller: "contract_documents" do
+          resources :versions, only: :create, controller: "document_versions"
+        end
+      end
+
+      # File access (docs/adr/0015): a short-lived link is issued after
+      # authorization, then the file is served for that link + session.
+      resources :document_versions, only: [] do
+        resource :download_link, only: :create, controller: "document_download_links"
+      end
+      get "document_files/:token", to: "document_files#show", as: :document_file,
+        constraints: { token: %r{[^/]+} }, format: false
     end
   end
 

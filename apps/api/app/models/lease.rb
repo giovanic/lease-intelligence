@@ -11,6 +11,7 @@ class Lease < ApplicationRecord
   belongs_to :property
   has_many :lease_parties, -> { order(:created_at, :id) }, inverse_of: :lease
   has_many :counterparties, through: :lease_parties
+  has_many :contract_documents, inverse_of: :lease
 
   # draft: being registered, not yet in force; active: in force;
   # expired: its term ended; terminated: ended early (rescission/distrato).

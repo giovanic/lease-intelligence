@@ -2,8 +2,12 @@
 
 Status: implemented — login, organization picker, and a routed
 workspace (React Router in declarative mode, ADR-0014) with properties,
-counterparties and leases screens (list / detail / create-edit). Pieces:
+counterparties and leases screens (list / detail / create-edit), and a
+"Documentos" section on the lease screen (`features/documents`: upload,
+new version, version history, open a file in a new tab through a
+5-minute link — ADR-0015). Pieces:
 `services/` API client (`apiClient.ts`, the only `fetch` caller; sends
+JSON, or `FormData` as multipart for uploads; sends
 `X-Tenant-Id`, maps the error envelope — including 422 `details` — to
 `ApiError`; `apiRequestPage` for `{ data, meta }` collections), hooks
 `useSession` / `useTenantSelection` (selected tenant per tab in

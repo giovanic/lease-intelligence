@@ -151,3 +151,44 @@ export interface LeaseInput {
   /** Replaces the lease's parties; at least one lessor. */
   parties: { counterparty_id: string; role: LeasePartyRole }[]
 }
+
+// Documents — ContractDocumentSerializer / DocumentVersionSerializer
+
+export type DocumentKind = 'original_contract' | 'amendment' | 'other'
+export type DocumentContentType = 'application/pdf' | 'image/jpeg' | 'image/png' | 'image/tiff'
+
+/** An immutable uploaded file of a document (docs/adr/0010). */
+export interface DocumentVersion {
+  id: string
+  contract_document_id: string
+  version_number: number
+  original_filename: string
+  content_type: DocumentContentType
+  byte_size: number
+  sha256: string
+  uploaded_by: Pick<User, 'id' | 'full_name'>
+  created_at: string
+}
+
+export interface ContractDocument {
+  id: string
+  lease_id: string
+  kind: DocumentKind
+  title: string
+  /** Newest first. */
+  versions: DocumentVersion[]
+  created_at: string
+  updated_at: string
+}
+
+export interface ContractDocumentInput {
+  kind: DocumentKind
+  title: string
+  file: File
+}
+
+/** A same-origin URL to the file, valid for 5 minutes, only for this user (docs/adr/0015). */
+export interface DownloadLink {
+  url: string
+  expires_at: string
+}

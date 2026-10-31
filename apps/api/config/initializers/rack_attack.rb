@@ -26,6 +26,16 @@ class Rack::Attack
     email.to_s.strip.downcase.presence
   end
 
+  # Document uploads (docs/adr/0015): each one is up to 50 MB of hashing
+  # and storage, so they are throttled per IP like sign-in
+  # (.claude/rules/security.md). Generous for a person uploading a batch
+  # of scanned amendments, tight for a script.
+  DOCUMENT_UPLOAD_PATH = %r{\A/api/v1/leases/[^/]+/documents(/[^/]+/versions)?\z}
+
+  throttle("document_uploads/ip", limit: 30, period: 1.minute) do |req|
+    req.ip if req.post? && DOCUMENT_UPLOAD_PATH.match?(req.path)
+  end
+
   self.throttled_responder = lambda do |req|
     retry_after = req.env["rack.attack.match_data"].to_h[:period].to_i
     [

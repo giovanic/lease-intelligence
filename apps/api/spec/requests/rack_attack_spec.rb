@@ -27,6 +27,18 @@ RSpec.describe "Sign-in throttling (Rack::Attack)", type: :request do
     expect(response.headers["retry-after"]).to eq("60")
   end
 
+  it "throttles document uploads per IP, before authentication or parsing" do
+    upload_path = "/api/v1/leases/#{SecureRandom.uuid}/documents"
+    30.times { post upload_path, headers: { "REMOTE_ADDR" => "10.0.1.1" } }
+    expect(response).to have_http_status(:unauthorized)
+
+    post "#{upload_path}/#{SecureRandom.uuid}/versions", headers: { "REMOTE_ADDR" => "10.0.1.1" }
+    expect(response).to have_http_status(:too_many_requests)
+
+    post upload_path, headers: { "REMOTE_ADDR" => "10.0.1.2" }
+    expect(response).to have_http_status(:unauthorized)
+  end
+
   it "throttles repeated attempts from the same IP across different emails" do
     10.times { |i| attempt("user#{i}@example.com") }
     expect(response).to have_http_status(:unauthorized)

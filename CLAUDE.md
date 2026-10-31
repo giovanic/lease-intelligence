@@ -30,7 +30,9 @@ apps/api/   Rails 8 API-only app (Ruby 3.3.13). Identity & Tenancy
             (users/tenants/memberships/invitations, RLS), session auth,
             Pundit, tenant context per request. Portfolio domain API
             (properties, counterparties) and Lease registration API
-            (leases + lease_parties). No documents/conditions yet.
+            (leases + lease_parties) and Document Management
+            (contract_documents + immutable document_versions, upload,
+            5-minute download links — ADR-0015). No conditions yet.
 apps/web/   Vite + React 19 + TypeScript SPA. Login -> organization
             picker -> routed workspace (React Router, ADR-0014) with
             properties, counterparties and leases screens; services/
@@ -81,9 +83,11 @@ build on top of them silently; surface them when relevant:
    `docs/domain/identity.md`, `docs/adr/0003-postgresql-rls.md`), and so
    is Portfolio (`properties`, `counterparties` — `docs/domain/portfolio.md`)
    and the lease registration (`leases`, `lease_parties` —
-   `docs/domain/leases.md`; no amendments/conditions yet).
-   Every other module (Document Management,
-   Contract Intelligence, Obligations, Audit & Security) is still
+   `docs/domain/leases.md`; no amendments/conditions yet), and Document
+   Management (`contract_documents`, `document_versions` —
+   `docs/domain/documents.md`, ADR-0015).
+   Every other module (Contract Intelligence, Obligations, Audit &
+   Security) is still
    unimplemented and must repeat the RLS checklist in
    `docs/runbooks/database.md` independently — nothing is automatic. Note
    `config.active_record.schema_format` is now `:sql`

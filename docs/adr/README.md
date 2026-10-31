@@ -17,14 +17,15 @@ field, and verify against the actual code before relying on it.
 | [0004](0004-uuid-primary-keys.md) | UUID primary keys | Decided, not implemented |
 | [0005](0005-rails-api-react-frontend-separation.md) | Rails API + React frontend separation | Decided, partially scaffolded |
 | [0006](0006-background-processing-sidekiq.md) | Background processing (Sidekiq) | Accepted — implemented |
-| [0007](0007-private-object-storage.md) | Private object storage | Decided, not implemented |
+| [0007](0007-private-object-storage.md) | Private object storage | Decided, partially implemented |
 | [0008](0008-ocr-provider-abstraction.md) | OCR provider abstraction | Decided, not implemented |
 | [0009](0009-llm-provider-abstraction.md) | LLM provider abstraction | Decided, not implemented |
-| [0010](0010-document-contract-versioning.md) | Document and contract versioning | Decided, not implemented |
+| [0010](0010-document-contract-versioning.md) | Document and contract versioning | Decided, partially implemented (documents) |
 | [0011](0011-evidence-first-architecture.md) | Evidence-first data architecture | Decided, not implemented |
 | [0012](0012-human-in-the-loop-review.md) | Human-in-the-loop review | Decided, not implemented |
 | [0013](0013-spa-session-auth-and-tenant-selection.md) | SPA session-cookie auth + `X-Tenant-Id` tenant selection | Implemented (API) |
 | [0014](0014-spa-routing-react-router.md) | SPA routing with React Router (declarative mode) | Implemented |
+| [0015](0015-document-file-storage-and-access.md) | Document file storage and access | Implemented |
 
 ## How to propose a new ADR
 

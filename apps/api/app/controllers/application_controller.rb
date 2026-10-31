@@ -27,6 +27,13 @@ class ApplicationController < ActionController::API
     render_error(:not_found, "not_found", "Resource not found.")
   end
 
+  # The document storage backend failed (docs/adr/0015); a write in
+  # progress has already rolled back.
+  rescue_from Documents::FileStore::Error do |error|
+    Rails.logger.error("[Documents::FileStore] #{error.message} cause=#{error.cause&.class}")
+    render_error(:service_unavailable, "storage_unavailable", "Document storage is unavailable. Try again later.")
+  end
+
   private
 
   # Accepts only a known value for an optional query filter.

@@ -6,5 +6,8 @@
 Rails.application.config.filter_parameters += [
   :passw, :email, :secret, :token, :_key, :crypt, :salt, :certificate, :otp, :ssn, :cvv, :cvc,
   # CPF/CNPJ and phone of counterparties: personal data under LGPD.
-  :tax_id, :phone
+  :tax_id, :phone,
+  # Uploaded contract files: the logged UploadedFile shows the original
+  # filename, which often carries a person's or company's name.
+  :file
 ]

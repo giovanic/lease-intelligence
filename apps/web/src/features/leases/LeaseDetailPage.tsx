@@ -5,6 +5,7 @@ import { StatusMessage } from '../../components/StatusMessage'
 import { useApiQuery } from '../../hooks/useApiQuery'
 import { fetchLease } from '../../services/leases'
 import { useWorkspace } from '../../state/workspace'
+import { LeaseDocuments } from '../documents/LeaseDocuments'
 import { COUNTERPARTY_KIND_LABELS } from '../portfolio/labels'
 import { PARTY_ROLE_LABELS } from './labels'
 import { LeaseStatusBadge } from './LeaseTable'
@@ -77,6 +78,8 @@ export function LeaseDetailPage() {
                 </table>
               </div>
             </section>
+
+            <LeaseDocuments leaseId={lease.id} />
 
             <section className="card section">
               <h2 className="section__title">Condições contratuais</h2>
