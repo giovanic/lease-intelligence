@@ -20,10 +20,14 @@ bin/rubocop                    # Omakase style, already configured via .rubocop.
 bin/brakeman --no-pager        # static security analysis, already in CI
 ```
 
-All three are already wired into `apps/api/.github/workflows/ci.yml`. CI
-currently passes trivially because there is nothing to test/lint beyond
-the Rails skeleton — do not treat a green CI run as evidence of feature
-correctness until real specs exist.
+All three run in `.github/workflows/ci.yml` (repo root — GitHub ignores
+workflows anywhere else). The `api-test` job creates the
+`lease_intelligence` role with `NOSUPERUSER NOBYPASSRLS CREATEDB`, fails
+if it could bypass RLS, then loads `db/structure.sql`
+(`db:create db:schema:load`) — never run the suite as `postgres`, or RLS
+specs pass vacuously. Brakeman reads `config/brakeman.ignore`; the only
+entry is the Rails 8.0 end-of-life notice (remove it with the Rails
+upgrade). A green CI is evidence only for what the specs cover.
 
 ## Frontend commands (verified present in apps/web/package.json)
 

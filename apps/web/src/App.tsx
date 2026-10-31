@@ -1,122 +1,53 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useCallback } from 'react'
+import { StatusMessage } from './components/StatusMessage'
+import { useSession } from './hooks/useSession'
+import { useTenantSelection } from './hooks/useTenantSelection'
+import { LoginPage } from './pages/LoginPage'
+import { OrganizationSelectPage } from './pages/OrganizationSelectPage'
+import { WorkspacePage } from './pages/WorkspacePage'
 
-function App() {
-  const [count, setCount] = useState(0)
+// Three screens (login -> organization -> workspace), switched by session
+// state. No router yet: picking one is a dependency decision deferred to
+// the first phase with real navigation (.claude/rules/frontend.md).
+export default function App() {
+  const session = useSession()
+  const signedIn = session.state.status === 'signedIn'
+  const tenant = useTenantSelection(signedIn)
 
-  return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
+  const { signOut } = session
+  const { clear } = tenant
+  const handleSignOut = useCallback(async () => {
+    clear()
+    await signOut()
+  }, [clear, signOut])
+
+  switch (session.state.status) {
+    case 'loading':
+      return (
+        <div className="auth-layout">
+          <StatusMessage kind="loading" title="Carregando…" />
         </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
+      )
+    case 'error':
+      return (
+        <div className="auth-layout">
+          <StatusMessage kind="error" title="Não foi possível conectar." description={session.state.message} onRetry={session.retry} />
         </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+      )
+    case 'signedOut':
+      return <LoginPage onSignIn={session.signIn} />
+    case 'signedIn':
+      if (!tenant.tenantId) {
+        return <OrganizationSelectPage me={session.state.me} onSelect={tenant.select} onSignOut={handleSignOut} />
+      }
+      return (
+        <WorkspacePage
+          me={session.state.me}
+          current={tenant.current}
+          onSwitchOrganization={tenant.clear}
+          onRetry={tenant.retry}
+          onSignOut={handleSignOut}
+        />
+      )
+  }
 }
-
-export default App

@@ -1,0 +1,113 @@
+# Quality gates for the monorepo (root CLAUDE.md §6, docs/runbooks/testing.md).
+# Replaces the Rails-generated apps/api/.github/workflows/ci.yml, which
+# GitHub never ran (workflows are only read from the repository root) and
+# which would have run Minitest as a Postgres superuser — bypassing RLS.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  api-lint:
+    name: API · RuboCop
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ruby/setup-ruby@v1
+        with:
+          working-directory: apps/api
+          bundler-cache: true
+      - run: bin/rubocop -f github
+
+  api-security:
+    name: API · Brakeman
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ruby/setup-ruby@v1
+        with:
+          working-directory: apps/api
+          bundler-cache: true
+      - run: bin/brakeman --no-pager
+
+  api-test:
+    name: API · RSpec
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      RAILS_ENV: test
+      LEASE_INTELLIGENCE_DATABASE_HOST: 127.0.0.1
+      LEASE_INTELLIGENCE_DATABASE_PORT: 5432
+      LEASE_INTELLIGENCE_DATABASE_PASSWORD: ci-only-password
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ruby/setup-ruby@v1
+        with:
+          working-directory: apps/api
+          bundler-cache: true
+
+      # The suite must run as the same kind of role as production: no
+      # SUPERUSER, no BYPASSRLS (otherwise every RLS policy is silently
+      # skipped and the isolation specs prove nothing). CREATEDB only so
+      # Rails can create the test database (docs/runbooks/database.md).
+      - name: Create the non-superuser application role
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h 127.0.0.1 -U postgres -v ON_ERROR_STOP=1 \
+            -c "CREATE ROLE lease_intelligence LOGIN PASSWORD '${LEASE_INTELLIGENCE_DATABASE_PASSWORD}' NOSUPERUSER NOBYPASSRLS CREATEDB"
+          privileged=$(psql -h 127.0.0.1 -U postgres -tAc \
+            "SELECT rolsuper OR rolbypassrls FROM pg_roles WHERE rolname = 'lease_intelligence'")
+          test "$privileged" = "f" || { echo "app role must not bypass RLS"; exit 1; }
+
+      - name: Load the schema (db/structure.sql, keeps RLS policies)
+        run: bin/rails db:create db:schema:load
+
+      - run: bundle exec rspec
+
+  web:
+    name: Web · lint + typecheck + build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build

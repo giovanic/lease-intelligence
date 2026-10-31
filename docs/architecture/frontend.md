@@ -1,8 +1,13 @@
 # Frontend Architecture
 
-Status: planned conventions. `apps/web` is currently the unmodified
-`npm create vite@latest -- --template react-ts` output — no router, no
-state management library, no API client, no feature folders exist.
+Status: first slice implemented — login, organization picker and an
+empty workspace shell (`src/pages`), the `services/` API client
+(`apiClient.ts`, the only `fetch` caller; sends `X-Tenant-Id`, maps the
+API error envelope to `ApiError`), hooks `useSession` /
+`useTenantSelection` (selected tenant per tab in `sessionStorage`,
+always re-confirmed by `GET /api/v1/current_membership`), and
+`src/types/api.ts` mirroring the Rails serializers. No router, state
+library or test runner yet — screens switch on session state.
 
 ## Stack as actually declared in `apps/web/package.json`
 
@@ -44,8 +49,7 @@ apps/web/src/
 ## What does not exist yet (do not assume)
 
 No routing library decision, no design system, no form library decision, no
-test runner (no Vitest/Jest configured), no `.env` convention for API base
-URL. Auth strategy is decided (ADR-0013): httpOnly session cookie, no
-token in JS; the API client must send `X-Tenant-Id` on tenant-scoped
-calls and the Vite dev server must proxy `/api` to Rails — neither is
-built yet.
+test runner (no Vitest/Jest configured). The API is always reached at the
+relative path `/api/v1` (same-origin, ADR-0013); `VITE_API_PROXY_TARGET`
+only changes where the dev proxy forwards to (default
+`http://127.0.0.1:3000`).

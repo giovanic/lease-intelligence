@@ -15,8 +15,8 @@ docs are up to date — verify).
 ## Workflow
 
 0. **Branch** — if this starts a new phase, create a new branch from an
-   up-to-date `main` (`phase/<short-kebab-name>`, or `feat/`/`fix/`/`chore/`
-   for smaller work) before any change. Never start a phase on `main` or
+   up-to-date `main` (`feat/<short-kebab-name>`, `fix/<name>` for bug
+   fixes) before any change. Commit as `feat: <resumo do que foi implementado>`. Never start a phase on `main` or
    on the previous phase's branch.
 1. **Requirement analysis** — restate the actual requirement in your own
    words; identify ambiguity and resolve it with the user before

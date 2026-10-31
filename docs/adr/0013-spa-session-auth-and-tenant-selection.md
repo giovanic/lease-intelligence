@@ -107,5 +107,6 @@ authorize or explicitly skip (`verify_authorized`). Requires
 
 ## Implementation status
 
-Implemented on branch `phase/auth-tenant-context` (API only). The Vite
-proxy and SPA login screen are not built yet.
+API implemented (merged, PR #1). Vite proxy (`apps/web/vite.config.ts`)
+and SPA login / organization picker implemented on `feat/web-login-and-ci`.
+The production reverse proxy does not exist yet.

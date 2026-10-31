@@ -26,10 +26,12 @@ any critical contractual fact before it is treated as ground truth. See
 ## 2. REPOSITORY LAYOUT (ACTUAL, AS OF THIS INSPECTION)
 
 ```
-apps/api/   Rails 8 API-only app (Ruby 3.3.4). Skeleton only: no domain
-            models, no migrations, no initialized Devise/Pundit, no RLS.
-apps/web/   Vite + React 19 + TypeScript SPA. Vanilla template, no routing,
-            no API client layer, no feature structure yet.
+apps/api/   Rails 8 API-only app (Ruby 3.3.4). Identity & Tenancy
+            (users/tenants/memberships/invitations, RLS), session auth,
+            Pundit, tenant context per request. No business domains yet.
+apps/web/   Vite + React 19 + TypeScript SPA. Login -> organization
+            picker -> workspace shell; services/ API client; no router.
+.github/    CI (workflows/ci.yml) + dependabot, at the repo root.
 docs/       product / architecture / domain / adr / runbooks (scaffolded,
             now populated by this harness).
 infrastructure/   empty — no docker-compose, no IaC yet.
@@ -58,16 +60,17 @@ build on top of them silently; surface them when relevant:
 2. **CORS: resolved by design, not by `rack-cors` (ADR-0013).** The SPA
    is served same-origin (Vite proxies `/api` in dev, a reverse proxy in
    prod), so the session cookie is first-party and no CORS is needed. The
-   Vite proxy itself is **not configured yet** (frontend phase) — until
-   then the SPA cannot call the API. `config/initializers/cors.rb` stays
+   Vite proxy is in `apps/web/vite.config.ts`; the production reverse
+   proxy does not exist yet. `config/initializers/cors.rb` stays
    the unused template; do not add `rack-cors` without revisiting ADR-0013.
 3. **Auth + tenant context are implemented (API only, ADR-0013).** Devise
    session in an httpOnly cookie (`/api/v1/session`, `/api/v1/me`),
    Pundit installed (`ApplicationPolicy` deny-by-default,
    `verify_authorized` on every action, `AuthorizationContext(user,
    membership)`), `TenantScoped` concern resolving `X-Tenant-Id` against
-   active memberships, Rack::Attack on sign-in. Not built: sign-up/org
-   creation, invitation acceptance, password reset, the SPA login screen.
+   active memberships, Rack::Attack on sign-in. The SPA login /
+   organization picker is built. Not built: sign-up/org creation,
+   invitation acceptance, password reset.
 4. **No local orchestration.** `infrastructure/` is empty — no
    `docker-compose.yml` for Postgres/Redis/local dev. `apps/api/Dockerfile`
    is production-only (Kamal-oriented).
@@ -132,19 +135,19 @@ non-trivial feature work.
 starts (e.g. authentication, documents upload, OCR pipeline, frontend
 shell), create a new branch for it from an up-to-date `main` *before*
 writing any code — never start a new phase on `main` or on the previous
-phase's branch. Name it `phase/<short-kebab-name>` (or `feat/`, `fix/`,
-`chore/` for work smaller than a phase). Confirm the repository topology
-(§3, item 6) first if it is still unresolved. Do not commit or push
-unless the user asks.
+phase's branch. Name it `feat/<short-kebab-name>` (`fix/<name>` for a
+bug fix). Commit messages: `feat: <resumo do que foi implementado>`
+(`fix: ...` for fixes) — one short summary line of what was implemented.
+Do not commit or push unless the user asks.
 
 ## 6. QUALITY GATES (see docs/runbooks/testing.md for exact commands)
 
-Backend: RSpec, RuboCop (Omakase), Brakeman — all three are already wired in
-`apps/api/.github/workflows/ci.yml`. Frontend: `tsc -b` (typecheck), `oxlint`
-(lint) — wired in `apps/web/package.json`. There are currently zero
-application-level tests on either side; the CI pipeline runs against an
-empty app. Do not claim a gate "passes" without running the exact command
-from the runbook.
+All gates run in `.github/workflows/ci.yml` (repo root) on every PR and
+push to `main`: backend RSpec (as a non-superuser, no-BYPASSRLS role),
+RuboCop (Omakase), Brakeman; frontend oxlint + `tsc -b` + Vite build.
+The frontend has no test runner yet (a dependency decision still open).
+Do not claim a gate "passes" without running the exact command from the
+runbook.
 
 ## 7. PRIMARY ENGINEERING PRINCIPLE
 
