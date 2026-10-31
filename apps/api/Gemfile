@@ -68,4 +68,4 @@ gem "rack-attack", "~> 6.8"
 # ActiveSupport 8.0's JSON encoder still passes, which makes every
 # `render json:` raise ArgumentError. Revisit when moving to a Rails
 # version whose encoder no longer passes it.
-gem "json", "~> 2.16"
+gem "json", "~> 3.1"
