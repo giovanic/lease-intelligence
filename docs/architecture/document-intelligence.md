@@ -1,7 +1,10 @@
 # Document Intelligence Architecture
 
-Status: planned. No document pipeline code exists yet. This describes the
-target design referenced by `apps/api/CLAUDE.md` §8.
+Status: partially implemented. Upload, checksum, private storage
+(ADR-0015) and text extraction — native PDF text, OCR fallback, per-page
+storage (ADR-0016) — exist; LLM extraction, evidence, review and fact
+approval do not. This describes the target design referenced by
+`apps/api/CLAUDE.md` §8.
 
 ## Document lifecycle
 
@@ -27,6 +30,12 @@ stored, both for integrity verification and duplicate detection.
    documents, images).
 6. Normalize pages (orientation, encoding) before downstream steps.
 
+Steps 4–6 are implemented as described in ADR-0016: `pdf-reader` per page,
+Tesseract (`por`) through `Ocr::TesseractProvider` for pages with fewer
+than 20 non-blank characters and for images, text normalized once
+(UTF-8, NFC, no NUL) before it is stored in `document_text_pages`.
+Orientation correction is not done (Tesseract's default page segmentation
+only).
 OCR is accessed through a provider abstraction (ADR-008) so the vendor can
 change without touching pipeline code. Uploaded document content is treated
 as untrusted input throughout — it is never interpolated unescaped into any

@@ -1,6 +1,7 @@
 GEM
   remote: https://rubygems.org/
   specs:
+    Ascii85 (2.0.1)
     action_text-trix (2.1.19)
       railties
     actioncable (8.1.4)
@@ -75,6 +76,7 @@ GEM
       securerandom (>= 0.3)
       tzinfo (~> 2.0, >= 2.0.5)
       uri (>= 0.13.1)
+    afm (1.0.1)
     ast (2.4.3)
     base64 (0.3.0)
     bcrypt (3.1.22)
@@ -113,6 +115,7 @@ GEM
       railties (>= 6.1.0)
     globalid (1.4.0)
       activesupport (>= 6.1)
+    hashery (2.1.2)
     i18n (1.15.2)
       concurrent-ruby (~> 1.0)
     io-console (0.9.5)
@@ -189,6 +192,11 @@ GEM
     parser (3.3.13.0)
       ast (~> 2.4.1)
       racc
+    pdf-reader (2.16.0)
+      Ascii85 (>= 1.0, < 3.0, != 2.0.0)
+      afm (>= 0.2.1, < 2)
+      hashery (~> 2.0)
+      ttfunk
     pg (1.7.0)
     pg (1.7.0-aarch64-linux)
     pg (1.7.0-aarch64-linux-musl)
@@ -343,6 +351,7 @@ GEM
     thruster (0.1.27-x86_64-linux)
     timeout (0.6.1)
     tsort (0.2.0)
+    ttfunk (1.7.0)
     tzinfo (2.0.6)
       concurrent-ruby (~> 1.0)
     unicode-display_width (3.3.0)
@@ -378,6 +387,7 @@ DEPENDENCIES
   factory_bot_rails (~> 6.5)
   json (~> 3.1)
   kamal
+  pdf-reader (~> 2.16)
   pg (~> 1.1)
   puma (>= 5.0)
   pundit (~> 2.5)

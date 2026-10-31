@@ -14,9 +14,11 @@ FROM docker.io/library/ruby:$RUBY_VERSION-slim AS base
 # Rails app lives here
 WORKDIR /rails
 
-# Install base packages
+# Install base packages. tesseract-ocr(-por) + poppler-utils (pdftoppm): OCR
+# of scanned contracts by Ocr::TesseractProvider (docs/adr/0016).
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y curl libjemalloc2 libvips postgresql-client && \
+    apt-get install --no-install-recommends -y curl libjemalloc2 libvips postgresql-client \
+      tesseract-ocr tesseract-ocr-por poppler-utils && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives
 
 # Set production environment

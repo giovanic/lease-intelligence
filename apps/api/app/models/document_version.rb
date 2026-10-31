@@ -11,6 +11,10 @@ class DocumentVersion < ApplicationRecord
   belongs_to :tenant
   belongs_to :contract_document
   belongs_to :uploaded_by, class_name: "User"
+  has_many :text_extractions, -> { order(:created_at, :id) }, class_name: "DocumentTextExtraction",
+    inverse_of: :document_version
+  # The attempt the API reports (docs/adr/0016); preloadable for lists.
+  has_one :latest_text_extraction, -> { order(created_at: :desc, id: :desc) }, class_name: "DocumentTextExtraction"
 
   validates :version_number, numericality: { only_integer: true, greater_than_or_equal_to: 1 }
   validates :storage_key, :original_filename, :sha256, presence: true

@@ -4,7 +4,10 @@ Status: **implemented** (Document Management phase, `feat/document-upload`):
 `ContractDocument`, `DocumentVersion`, upload, new versions and file
 access, API + the "Documentos" section of the lease screen. Storage and
 access design: `docs/adr/0015-document-file-storage-and-access.md`.
-Not built yet: page count, OCR/extraction (`ExtractionRun`), deletion.
+Every version gets its text extracted (per page, native PDF text or OCR)
+right after upload — see `docs/adr/0016-document-text-extraction.md` and
+"Text extraction" below. Not built yet: AI extraction (`ExtractionRun`),
+deletion.
 
 ## Entities
 
@@ -29,6 +32,7 @@ is the only reference to the stored bytes (ADR-0015).
 ```
 Lease 1---* ContractDocument
 ContractDocument 1---* DocumentVersion
+DocumentVersion 1---* DocumentTextExtraction 1---* DocumentTextPage
 DocumentVersion 1---* ExtractionRun      (planned)
 ```
 
@@ -55,6 +59,32 @@ DocumentVersion 1---* ExtractionRun      (planned)
   `DocumentVersionPolicy`).
 - A `DocumentVersion` is the unit an `ExtractionRun` will operate on, so
   extraction results stay traceable to the exact bytes that produced them.
+
+## Text extraction (docs/adr/0016)
+
+- **DocumentTextExtraction** (`document_text_extractions`, tenant-owned,
+  FORCE RLS) — one attempt over one version: `status`
+  (`pending` → `running` → `succeeded` | `failed`), page counts (total,
+  native, OCR), engine versions, `error_code` (fixed vocabulary,
+  `DocumentTextExtraction::ERROR_CODES`), `requested_by_id` (null for the
+  automatic run after upload), `started_at`/`finished_at`. Composite FK on
+  `(document_version_id, tenant_id)`; at most one pending/running attempt
+  per version (partial unique index). Reprocessing adds a row; the API
+  reports the latest one.
+- **DocumentTextPage** (`document_text_pages`, tenant-owned, FORCE RLS,
+  append-only trigger) — `page_number`, `source` (`native`/`ocr`), `text`
+  (normalized: UTF-8, NFC, no NUL, no trailing blanks). Composite FK on
+  `(text_extraction_id, tenant_id)`.
+- Flow: `Documents::VersionWriter` → `DocumentText::RequestExtraction` →
+  `ExtractDocumentTextJob` (after commit, queue `documents`) →
+  `StartExtraction` / `ExtractPages` (outside any transaction) /
+  `RecordOutcome`. A PDF page with fewer than 20 non-blank characters goes
+  to OCR; images always do. Limits: 300 pages, OCR timeouts per page.
+- The text is not exposed by the API in this phase; the version JSON only
+  carries `text_extraction` (status + counts). Requesting a new attempt:
+  `POST /api/v1/document_versions/:id/text_extractions` (owner/admin/
+  manager; 409 while one is pending/running, unless it is stuck for over an
+  hour — then it is closed as `abandoned`).
 
 ## API
 

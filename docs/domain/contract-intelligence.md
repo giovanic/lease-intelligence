@@ -1,7 +1,10 @@
 # Domain: Contract Intelligence (OCR/AI/Evidence/Review)
 
-Status: planned domain model. No pipeline, provider abstraction, or review
-model exists yet. See ADR-008, ADR-009, ADR-011, ADR-012.
+Status: planned domain model. The first pipeline step — text extraction
+with the OCR provider abstraction (`DocumentTextExtraction`,
+`DocumentTextPage`, ADR-0016, see `docs/domain/documents.md`) — is
+implemented; `ExtractionRun` and everything after it is not. See ADR-008,
+ADR-009, ADR-011, ADR-012, ADR-0016.
 
 ## Entities
 

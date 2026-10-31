@@ -8,7 +8,10 @@ module Documents
   # - `store!`: inside the caller's transaction, numbers the version, inserts
   #   the row and only then writes the bytes, so a storage failure rolls the
   #   row back. The caller must hold a lock on (or have just inserted) the
-  #   document, so two uploads cannot take the same number.
+  #   document, so two uploads cannot take the same number. Every new version
+  #   gets its text extracted (DocumentText::RequestExtraction, docs/adr/0016),
+  #   requested before the bytes are written so the last step is still the
+  #   only one outside the database; the job is enqueued once it commits.
   class VersionWriter
     DUPLICATE_INDEX = "idx_document_versions_unique_sha256_per_tenant".freeze
 
@@ -33,6 +36,7 @@ module Documents
         storage_key: storage_key, original_filename: upload.original_filename, content_type: upload.content_type,
         byte_size: upload.byte_size, sha256: upload.sha256, uploaded_by: uploaded_by
       )
+      DocumentText::RequestExtraction.call(version: version)
       FileStore.upload(storage_key, upload.io, md5_base64: upload.md5_base64, content_type: upload.content_type)
       version
     end

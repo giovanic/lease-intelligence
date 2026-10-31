@@ -2,9 +2,10 @@
 # Run with bin/jobs. Redis connection: config/initializers/sidekiq.rb.
 #
 # Queues are processed in order of weight. Add a queue here only together
-# with the first job that needs it (e.g. a dedicated `documents` queue for
-# OCR/AI extraction), so slow provider calls cannot starve short jobs.
+# with the first job that needs it. `documents` holds the slow OCR/AI work
+# (ExtractDocumentTextJob, docs/adr/0016), so it cannot starve short jobs.
 :concurrency: <%= ENV.fetch("SIDEKIQ_CONCURRENCY", 5) %>
 :queues:
   - [default, 2]
+  - [documents, 1]
   - [mailers, 1]

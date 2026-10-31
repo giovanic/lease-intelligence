@@ -1,7 +1,8 @@
 # Background Processing Architecture
 
-Status: **Sidekiq + Redis, implemented** (ADR-0006). No product job
-exists yet — the first will be document processing (OCR, AI extraction).
+Status: **Sidekiq + Redis, implemented** (ADR-0006). The first product
+job is `ExtractDocumentTextJob` (text extraction/OCR of each uploaded
+version, ADR-0016) on the `documents` queue.
 
 ## Requirement
 
@@ -21,13 +22,20 @@ context before touching tenant-owned data (see
   elsewhere.
 - Worker: `bin/jobs` (`bundle exec sidekiq -C config/sidekiq.yml`), a
   separate process — never inside Puma. Kamal runs it as the `job` role.
-- Queues (`config/sidekiq.yml`): `default` (weight 2), `mailers`
-  (weight 1); concurrency from `SIDEKIQ_CONCURRENCY` (default 5). Add a
-  dedicated queue (e.g. `documents`) together with the first job that
-  needs it, so slow provider calls cannot starve short jobs.
+- Queues (`config/sidekiq.yml`): `default` (weight 2), `documents`
+  (weight 1, OCR/AI work), `mailers` (weight 1); concurrency from
+  `SIDEKIQ_CONCURRENCY` (default 5). Weights share one pool of threads: if
+  OCR volume grows, run a separate worker process for `documents`.
+- Enqueue inside a transaction: `ActiveJob::Base.enqueue_after_transaction_commit`
+  is `false` app-wide. A job enqueued from a request or service (always
+  inside a transaction) sets `self.enqueue_after_transaction_commit = true`
+  on its class, as `ExtractDocumentTextJob` does — otherwise a worker can
+  run before the row it needs is committed, or for a row that rolls back.
 - Retries: Sidekiq's defaults (exponential backoff, then the dead set).
   Per-job `retry_on`/`discard_on` only where a failure is known to be
-  transient or permanent.
+  transient or permanent. `ExtractDocumentTextJob` records expected
+  failures without retrying, retries anything else 3 times through Active
+  Job (`sidekiq_options retry: 0`), then records `internal_error`.
 
 ## Tenant context in jobs
 

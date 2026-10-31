@@ -121,8 +121,18 @@ RSpec.describe "Documents services" do
     it "rolls the rows back and raises when storage fails" do
       allow(store).to receive(:upload).and_raise(Errno::ENOSPC)
 
-      expect { create_document }.to raise_error(Documents::FileStore::Error, /storage upload failed \(Errno::ENOSPC\)/)
-      expect(with_tenant(tenant) { [ ContractDocument.count, DocumentVersion.count ] }).to eq([ 0, 0 ])
+      expect {
+        expect { create_document }.to raise_error(Documents::FileStore::Error, /storage upload failed \(Errno::ENOSPC\)/)
+      }.not_to have_enqueued_job(ExtractDocumentTextJob)
+      expect(with_tenant(tenant) { [ ContractDocument.count, DocumentVersion.count, DocumentTextExtraction.count ] })
+        .to eq([ 0, 0, 0 ])
+    end
+
+    it "requests the text extraction of the new version (docs/adr/0016)" do
+      version = nil
+      expect { version = create_document.value.versions.sole }.to have_enqueued_job(ExtractDocumentTextJob)
+
+      expect(with_tenant(tenant) { version.text_extractions.sole }).to have_attributes(status: "pending", requested_by_id: nil)
     end
   end
 
@@ -145,6 +155,8 @@ RSpec.describe "Documents services" do
       third = add_version.value
 
       expect([ second.version_number, third.version_number ]).to eq([ 2, 3 ])
+      expect(with_tenant(tenant) { [ second, third ].map { |version| version.text_extractions.sole.status } })
+        .to eq(%w[pending pending])
       expect(second.content_type).to eq("image/png")
       expect(with_tenant(tenant) { DocumentVersion.find(first.id) }).to have_attributes(first.attributes.except("tenant"))
       expect(store.exist?(first.storage_key)).to be(true)

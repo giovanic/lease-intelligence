@@ -127,11 +127,31 @@ RSpec.describe "Row-Level Security", type: :model do
       # Versions are immutable: the BEFORE UPDATE trigger rejects the move
       # even before the RLS WITH CHECK would.
       move_error: /row-level security|document_versions rows are immutable/
+    },
+    "document_text_extractions" => {
+      factory: :document_text_extraction,
+      create: ->(tenant) { create(:document_text_extraction, document_version: create_version(tenant)) },
+      insert_columns: "tenant_id, document_version_id, status, created_at, updated_at",
+      insert_values: "gen_random_uuid(), 'pending', now(), now()",
+      update_set: "status = 'running'"
+    },
+    "document_text_pages" => {
+      factory: :document_text_page,
+      create: ->(tenant) { create(:document_text_page, text_extraction: create(:document_text_extraction, document_version: create_version(tenant))) },
+      insert_columns: "tenant_id, text_extraction_id, page_number, source, text, created_at",
+      insert_values: "gen_random_uuid(), 1, 'ocr', 'texto', now()",
+      update_set: "text = 'hijacked'",
+      # Pages are immutable: the trigger rejects the move as well.
+      move_error: /row-level security|document_text_pages rows are immutable/
     }
   }.each do |table, config|
     describe "#{table} (raw SQL)" do
       let(:connection) { ActiveRecord::Base.connection }
       let!(:row_b) { with_tenant(tenant_b) { create_row(config, tenant_b) } }
+
+      def create_version(tenant)
+        create(:document_version, contract_document: create(:contract_document, tenant: tenant))
+      end
 
       def create_row(config, tenant)
         config[:create] ? instance_exec(tenant, &config[:create]) : create(config[:factory], tenant: tenant)

@@ -9,5 +9,9 @@ Rails.application.config.filter_parameters += [
   :tax_id, :phone,
   # Uploaded contract files: the logged UploadedFile shows the original
   # filename, which often carries a person's or company's name.
-  :file
+  :file,
+  # Extracted contract text (document_text_pages.text, docs/adr/0016): masked
+  # in SQL bind logs and in #inspect. Exact name — a partial :text would
+  # also hide unrelated keys like "context".
+  /\Atext\z/
 ]

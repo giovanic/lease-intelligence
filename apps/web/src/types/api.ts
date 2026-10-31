@@ -167,6 +167,34 @@ export interface DocumentVersion {
   byte_size: number
   sha256: string
   uploaded_by: Pick<User, 'id' | 'full_name'>
+  /** The latest text extraction attempt, or null for a version never processed (docs/adr/0016). */
+  text_extraction: TextExtraction | null
+  created_at: string
+}
+
+export type TextExtractionStatus = 'pending' | 'running' | 'succeeded' | 'failed'
+
+export type TextExtractionErrorCode =
+  | 'unreadable_file'
+  | 'encrypted_pdf'
+  | 'too_many_pages'
+  | 'timeout'
+  | 'ocr_unavailable'
+  | 'storage_unavailable'
+  | 'abandoned'
+  | 'internal_error'
+
+/** Status and counts only — the extracted text is not exposed by the API yet. */
+export interface TextExtraction {
+  id: string
+  document_version_id: string
+  status: TextExtractionStatus
+  page_count: number | null
+  native_page_count: number | null
+  ocr_page_count: number | null
+  error_code: TextExtractionErrorCode | null
+  started_at: string | null
+  finished_at: string | null
   created_at: string
 }
 

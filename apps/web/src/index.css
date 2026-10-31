@@ -566,6 +566,19 @@ a.button {
   color: var(--color-muted);
 }
 
+.badge--negative {
+  background: #fdecec;
+  color: #b42318;
+}
+
+/* Text extraction status of a document version (docs/adr/0016) */
+.text-extraction {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
 /* Forms */
 .form {
   padding: 24px;

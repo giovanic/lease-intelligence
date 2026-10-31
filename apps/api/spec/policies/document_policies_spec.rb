@@ -2,8 +2,9 @@ require "rails_helper"
 require "pundit/rspec"
 
 # Policy layer of the three-layer tenant isolation test for documents.
-# Any active member reads; owners/admins/managers upload; nobody updates
-# or destroys (versions are immutable, docs/adr/0010).
+# Any active member reads; owners/admins/managers upload and request text
+# extractions; nobody updates or destroys (versions are immutable,
+# docs/adr/0010; extractions change only through the pipeline, docs/adr/0016).
 RSpec.describe "Document policies" do
   let(:tenant) { create(:tenant) }
   let(:other_tenant) { create(:tenant) }
@@ -12,6 +13,15 @@ RSpec.describe "Document policies" do
   let!(:version) { with_tenant(tenant) { create(:document_version, contract_document: document) } }
   let!(:other_document) { with_tenant(other_tenant) { create(:contract_document, tenant: other_tenant) } }
   let!(:other_version) { with_tenant(other_tenant) { create(:document_version, contract_document: other_document) } }
+  let!(:extraction) { with_tenant(tenant) { create(:document_text_extraction, document_version: version) } }
+  let!(:other_extraction) do
+    with_tenant(other_tenant) { create(:document_text_extraction, document_version: other_version) }
+  end
+  let(:records) { { ContractDocumentPolicy => document, DocumentVersionPolicy => version, DocumentTextExtractionPolicy => extraction } }
+  let(:other_tenant_records) do
+    { ContractDocumentPolicy => other_document, DocumentVersionPolicy => other_version,
+      DocumentTextExtractionPolicy => other_extraction }
+  end
 
   def context_for(role, status: "active")
     membership = with_tenant(tenant) { create(:membership, tenant: tenant, user: user, role: role, status: status) }
@@ -20,11 +30,13 @@ RSpec.describe "Document policies" do
 
   {
     ContractDocumentPolicy => { read: %i[index? show?], write: %i[create?], never: %i[update? destroy?] },
-    DocumentVersionPolicy => { read: %i[show?], write: %i[create?], never: %i[update? destroy?] }
+    DocumentVersionPolicy => { read: %i[show?], write: %i[create?], never: %i[update? destroy?] },
+    # Status is read through the version; the extraction itself has no read action yet.
+    DocumentTextExtractionPolicy => { read: [], write: %i[create?], never: %i[index? show? update? destroy?] }
   }.each do |policy, actions|
     describe policy do
-      let(:record) { policy == ContractDocumentPolicy ? document : version }
-      let(:other_tenant_record) { policy == ContractDocumentPolicy ? other_document : other_version }
+      let(:record) { records.fetch(policy) }
+      let(:other_tenant_record) { other_tenant_records.fetch(policy) }
 
       %w[owner admin manager analyst viewer].each do |role|
         it "lets an active #{role} read" do

@@ -19,7 +19,10 @@ at properties/counterparties/leases through composite foreign keys on
 of a tenant-owned table. Documents (`contract_documents`,
 `document_versions`) follow the same pattern, and `document_versions` adds
 an immutability trigger (rejects UPDATE/DELETE) — `TRUNCATE` is not
-blocked by it. No other module's tables exist yet.
+blocked by it. Text extraction (`document_text_extractions`,
+`document_text_pages`, ADR-0016) follows it too, with the same kind of
+immutability trigger on `document_text_pages`. No other module's tables
+exist yet.
 
 `db/structure.sql` must load on the CI's PostgreSQL 16: a dump made by a
 newer local server/`pg_dump` may add `SET transaction_timeout = 0;`

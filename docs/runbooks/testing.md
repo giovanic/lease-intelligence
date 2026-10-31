@@ -26,6 +26,13 @@ specs pass vacuously. Brakeman reads `config/brakeman.ignore`; the only
 entry is the Rails 8.0 end-of-life notice (remove it with the Rails
 upgrade). A green CI is evidence only for what the specs cover.
 
+Text extraction specs (ADR-0016) use `DocumentTextHelpers::FakeOcr` and an
+in-memory PDF builder (`spec/support/document_text_helpers.rb`). Only
+`spec/services/ocr/tesseract_provider_spec.rb` runs the real binaries
+(`tesseract`, `pdftoppm`): the CI job installs them and the spec raises
+instead of skipping when `CI` is set; locally it is skipped, with the
+reason, if they are missing (see `docs/runbooks/development.md`).
+
 ## Frontend commands (verified present in apps/web/package.json)
 
 ```
