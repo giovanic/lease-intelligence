@@ -8,7 +8,7 @@ touch tenant-owned rows wrap them in `with_tenant(...)`
 (`spec/support/tenant_context_helper.rb`) — FORCE RLS applies to the test
 role too. `apps/web` has no test runner installed at all.
 
-## Backend commands (verified, exercised against Identity & Portfolio)
+## Backend commands (verified, exercised against Identity, Portfolio & Leases)
 
 ```
 cd apps/api
@@ -65,6 +65,17 @@ clean), and the raw-SQL blocks in `spec/security/row_level_security_spec.rb`
 (SELECT/UPDATE/DELETE/INSERT/tenant-move denied with no model involved).
 When asserting a database error inside `with_tenant`, put the `expect {}`
 *outside* the block so the savepoint rolls back.
+
+`TenantContext.activate` does **not** nest: its `ensure` clears the
+context, so a lazy `let` first evaluated inside another `with_tenant`
+block leaves the rest of that block without a tenant (RLS errors on the
+next write). Create such records with `let!`, or outside the block. For
+the same reason, read associations of a returned record inside
+`with_tenant` (or load them in the service, as `Leases::LeaseWriter`
+does) — outside it RLS returns no rows. Leases follow the same layers:
+`spec/policies/lease_policy_spec.rb`, `spec/requests/api/v1/leases_spec.rb`
+(incl. cross-tenant ids inside the body and a query-count N+1 check), and
+the `leases`/`lease_parties` raw-SQL blocks.
 
 ## Do not
 

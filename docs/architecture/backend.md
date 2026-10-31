@@ -61,8 +61,9 @@ and must surface terminal failures to a reviewable status, not swallow them.
 No serializer library (plain serializer classes in `app/serializers`).
 Pagination is the in-house `Paginated` controller concern (offset,
 `?page=&per_page=` up to 100, `meta` with totals; invalid values are 400)
-— no pagination gem. Domain code lives in `app/services/identity/` and
-`app/services/portfolio/` (services + query objects); services return
+— no pagination gem. Domain code lives in `app/services/identity/`,
+`app/services/portfolio/` and `app/services/leases/` (services + query
+objects; multi-record writes in one transaction); services return
 `ServiceResult` (validation failures carry the model's
 `ActiveModel::Errors`, rendered as 422 `validation_failed` with
 `details`). Tenant-owned record policies inherit `TenantOwnedPolicy`.

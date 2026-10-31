@@ -1,8 +1,10 @@
 # MVP Scope
 
-Status: planned scope. Implemented so far (API): organizations/users/
-memberships (sign-in + tenant selection; no invitations flow yet) and
-Portfolio (properties, counterparties). Everything else is planned.
+Status: planned scope. Implemented so far: organizations/users/
+memberships (sign-in + tenant selection; no invitations flow yet),
+Portfolio (properties, counterparties) and Lease Management's
+registration (lease + property + parties, no terms) — API and SPA
+screens. Everything else is planned.
 
 ## In scope for MVP
 

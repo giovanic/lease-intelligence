@@ -93,11 +93,31 @@ RSpec.describe "Row-Level Security", type: :model do
       insert_columns: "tenant_id, kind, legal_name, created_at, updated_at",
       insert_values: "'company', 'Locadora X', now(), now()",
       update_set: "legal_name = 'hijacked'"
+    },
+    # Random parent ids: the RLS check runs before the foreign keys, so the
+    # error proven here is the policy's, not a missing parent.
+    "leases" => {
+      factory: :lease,
+      insert_columns: "tenant_id, property_id, title, status, created_at, updated_at",
+      insert_values: "gen_random_uuid(), 'Contrato X', 'draft', now(), now()",
+      update_set: "title = 'hijacked'"
+    },
+    "lease_parties" => {
+      factory: :lease_party,
+      # A party's lease, counterparty and own row must share one tenant.
+      create: ->(tenant) { create(:lease_party, lease: create(:lease, tenant: tenant)) },
+      insert_columns: "tenant_id, lease_id, counterparty_id, role, created_at, updated_at",
+      insert_values: "gen_random_uuid(), gen_random_uuid(), 'lessor', now(), now()",
+      update_set: "role = 'guarantor'"
     }
   }.each do |table, config|
     describe "#{table} (raw SQL)" do
       let(:connection) { ActiveRecord::Base.connection }
-      let!(:row_b) { with_tenant(tenant_b) { create(config[:factory], tenant: tenant_b) } }
+      let!(:row_b) { with_tenant(tenant_b) { create_row(config, tenant_b) } }
+
+      def create_row(config, tenant)
+        config[:create] ? instance_exec(tenant, &config[:create]) : create(config[:factory], tenant: tenant)
+      end
 
       def insert_sql(table, config, tenant_id)
         "INSERT INTO #{table} (#{config[:insert_columns]}) " \
@@ -136,7 +156,7 @@ RSpec.describe "Row-Level Security", type: :model do
       end
 
       it "denies moving an own row to another tenant" do
-        row_a = with_tenant(tenant_a) { create(config[:factory], tenant: tenant_a) }
+        row_a = with_tenant(tenant_a) { create_row(config, tenant_a) }
 
         expect {
           with_tenant(tenant_a) do

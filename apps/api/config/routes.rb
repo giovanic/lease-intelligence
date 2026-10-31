@@ -13,6 +13,10 @@ Rails.application.routes.draw do
       # archived through `status`, since leases will reference them.
       resources :properties, only: %i[index show create update]
       resources :counterparties, only: %i[index show create update]
+
+      # Lease Management (docs/domain/leases.md). No destroy: a lease ends
+      # through its status (expired/terminated).
+      resources :leases, only: %i[index show create update]
     end
   end
 

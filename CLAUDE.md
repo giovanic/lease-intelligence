@@ -29,9 +29,12 @@ any critical contractual fact before it is treated as ground truth. See
 apps/api/   Rails 8 API-only app (Ruby 3.3.13). Identity & Tenancy
             (users/tenants/memberships/invitations, RLS), session auth,
             Pundit, tenant context per request. Portfolio domain API
-            (properties, counterparties). No leases/documents yet.
+            (properties, counterparties) and Lease registration API
+            (leases + lease_parties). No documents/conditions yet.
 apps/web/   Vite + React 19 + TypeScript SPA. Login -> organization
-            picker -> workspace shell; services/ API client; no router.
+            picker -> routed workspace (React Router, ADR-0014) with
+            properties, counterparties and leases screens; services/
+            API client; hand-rolled useApiQuery (no data library).
 .github/    CI (workflows/ci.yml) + dependabot, at the repo root.
 docs/       product / architecture / domain / adr / runbooks (scaffolded,
             now populated by this harness).
@@ -76,8 +79,10 @@ build on top of them silently; surface them when relevant:
 5. **RLS and the Identity & Tenancy schema are now implemented**
    (`tenants`, `users`, `memberships`, `invitations` — see
    `docs/domain/identity.md`, `docs/adr/0003-postgresql-rls.md`), and so
-   is Portfolio (`properties`, `counterparties` — `docs/domain/portfolio.md`).
-   Every other module (Lease Management, Document Management,
+   is Portfolio (`properties`, `counterparties` — `docs/domain/portfolio.md`)
+   and the lease registration (`leases`, `lease_parties` —
+   `docs/domain/leases.md`; no amendments/conditions yet).
+   Every other module (Document Management,
    Contract Intelligence, Obligations, Audit & Security) is still
    unimplemented and must repeat the RLS checklist in
    `docs/runbooks/database.md` independently — nothing is automatic. Note

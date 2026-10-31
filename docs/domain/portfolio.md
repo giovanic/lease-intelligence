@@ -1,8 +1,10 @@
 # Domain: Portfolio (Properties & Counterparties)
 
-Status: **implemented (API only)** — models, RLS migrations, policies and
-`/api/v1/properties` + `/api/v1/counterparties`. No frontend screens yet;
-no link to leases yet (Lease Management is the next domain).
+Status: **implemented** — models, RLS migrations, policies,
+`/api/v1/properties` + `/api/v1/counterparties`, and SPA screens (list,
+detail with the record's leases, create/edit, archive/reactivate) in
+`apps/web/src/features/portfolio/`. Leases link to both
+(`docs/domain/leases.md`).
 
 ## Entities
 
@@ -30,14 +32,14 @@ no link to leases yet (Lease Management is the next domain).
 ```
 Tenant 1---* Property
 Tenant 1---* Counterparty
-Property 1---* Lease          (planned)
-Counterparty *---* Lease      (planned; a lease may have more than one
-                               counterparty, a counterparty many leases)
+Property 1---* Lease          (leases.property_id)
+Counterparty *---* Lease      (through lease_parties, with a role)
 ```
 
-Both tables have a unique `(id, tenant_id)` index so the future lease
-tables can use composite foreign keys and the database rejects a lease
-linking another tenant's property or counterparty.
+Both tables have a unique `(id, tenant_id)` index; `leases` and
+`lease_parties` reference it with composite foreign keys, so the database
+rejects a lease linking another tenant's property or counterparty. An
+archived record cannot be newly linked to a lease.
 
 ## Isolation and authorization
 

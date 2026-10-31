@@ -24,6 +24,7 @@ field, and verify against the actual code before relying on it.
 | [0011](0011-evidence-first-architecture.md) | Evidence-first data architecture | Decided, not implemented |
 | [0012](0012-human-in-the-loop-review.md) | Human-in-the-loop review | Decided, not implemented |
 | [0013](0013-spa-session-auth-and-tenant-selection.md) | SPA session-cookie auth + `X-Tenant-Id` tenant selection | Implemented (API) |
+| [0014](0014-spa-routing-react-router.md) | SPA routing with React Router (declarative mode) | Implemented |
 
 ## How to propose a new ADR
 

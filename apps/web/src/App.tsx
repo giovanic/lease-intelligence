@@ -1,18 +1,30 @@
 import { useCallback } from 'react'
+import { Navigate, Route, Routes, useNavigate } from 'react-router'
 import { StatusMessage } from './components/StatusMessage'
+import { LeaseDetailPage } from './features/leases/LeaseDetailPage'
+import { LeaseFormPage } from './features/leases/LeaseFormPage'
+import { LeaseListPage } from './features/leases/LeaseListPage'
+import { CounterpartyDetailPage } from './features/portfolio/CounterpartyDetailPage'
+import { CounterpartyFormPage } from './features/portfolio/CounterpartyFormPage'
+import { CounterpartyListPage } from './features/portfolio/CounterpartyListPage'
+import { PropertyDetailPage } from './features/portfolio/PropertyDetailPage'
+import { PropertyFormPage } from './features/portfolio/PropertyFormPage'
+import { PropertyListPage } from './features/portfolio/PropertyListPage'
 import { useSession } from './hooks/useSession'
 import { useTenantSelection } from './hooks/useTenantSelection'
 import { LoginPage } from './pages/LoginPage'
+import { NotFoundPage } from './pages/NotFoundPage'
 import { OrganizationSelectPage } from './pages/OrganizationSelectPage'
-import { WorkspacePage } from './pages/WorkspacePage'
+import { WorkspaceLayout } from './pages/WorkspaceLayout'
 
-// Three screens (login -> organization -> workspace), switched by session
-// state. No router yet: picking one is a dependency decision deferred to
-// the first phase with real navigation (.claude/rules/frontend.md).
+// Session and organization gate in front of the router (docs/adr/0014):
+// login -> organization -> routed workspace. A deep link opened while
+// signed out keeps its URL and renders once the gate is passed.
 export default function App() {
   const session = useSession()
   const signedIn = session.state.status === 'signedIn'
   const tenant = useTenantSelection(signedIn)
+  const navigate = useNavigate()
 
   const { signOut } = session
   const { clear } = tenant
@@ -20,6 +32,13 @@ export default function App() {
     clear()
     await signOut()
   }, [clear, signOut])
+
+  // A record URL belongs to the organization it was opened in; after a
+  // switch, start from the home screen of the new one.
+  const handleSwitchOrganization = useCallback(() => {
+    clear()
+    navigate('/')
+  }, [clear, navigate])
 
   switch (session.state.status) {
     case 'loading':
@@ -41,13 +60,35 @@ export default function App() {
         return <OrganizationSelectPage me={session.state.me} onSelect={tenant.select} onSignOut={handleSignOut} />
       }
       return (
-        <WorkspacePage
-          me={session.state.me}
-          current={tenant.current}
-          onSwitchOrganization={tenant.clear}
-          onRetry={tenant.retry}
-          onSignOut={handleSignOut}
-        />
+        // Keyed by tenant: no screen state survives an organization switch.
+        <Routes key={tenant.tenantId}>
+          <Route
+            element={
+              <WorkspaceLayout
+                me={session.state.me}
+                current={tenant.current}
+                onSwitchOrganization={handleSwitchOrganization}
+                onRetry={tenant.retry}
+                onSignOut={handleSignOut}
+              />
+            }
+          >
+            <Route index element={<Navigate to="/leases" replace />} />
+            <Route path="leases" element={<LeaseListPage />} />
+            <Route path="leases/new" element={<LeaseFormPage />} />
+            <Route path="leases/:id" element={<LeaseDetailPage />} />
+            <Route path="leases/:id/edit" element={<LeaseFormPage />} />
+            <Route path="properties" element={<PropertyListPage />} />
+            <Route path="properties/new" element={<PropertyFormPage />} />
+            <Route path="properties/:id" element={<PropertyDetailPage />} />
+            <Route path="properties/:id/edit" element={<PropertyFormPage />} />
+            <Route path="counterparties" element={<CounterpartyListPage />} />
+            <Route path="counterparties/new" element={<CounterpartyFormPage />} />
+            <Route path="counterparties/:id" element={<CounterpartyDetailPage />} />
+            <Route path="counterparties/:id/edit" element={<CounterpartyFormPage />} />
+            <Route path="*" element={<NotFoundPage />} />
+          </Route>
+        </Routes>
       )
   }
 }
