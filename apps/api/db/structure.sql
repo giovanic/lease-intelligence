@@ -97,6 +97,44 @@ ALTER TABLE ONLY public.invitations FORCE ROW LEVEL SECURITY;
 
 
 --
+-- Name: lease_parties; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.lease_parties (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    tenant_id uuid NOT NULL,
+    lease_id uuid NOT NULL,
+    counterparty_id uuid NOT NULL,
+    role character varying NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT lease_parties_role_check CHECK (((role)::text = ANY ((ARRAY['lessor'::character varying, 'guarantor'::character varying, 'intervening_party'::character varying])::text[])))
+);
+
+ALTER TABLE ONLY public.lease_parties FORCE ROW LEVEL SECURITY;
+
+
+--
+-- Name: leases; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.leases (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    tenant_id uuid NOT NULL,
+    property_id uuid NOT NULL,
+    title character varying NOT NULL,
+    code character varying,
+    status character varying DEFAULT 'draft'::character varying NOT NULL,
+    notes text,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT leases_status_check CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'active'::character varying, 'expired'::character varying, 'terminated'::character varying])::text[])))
+);
+
+ALTER TABLE ONLY public.leases FORCE ROW LEVEL SECURITY;
+
+
+--
 -- Name: memberships; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -222,6 +260,22 @@ ALTER TABLE ONLY public.invitations
 
 
 --
+-- Name: lease_parties lease_parties_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.lease_parties
+    ADD CONSTRAINT lease_parties_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: leases leases_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.leases
+    ADD CONSTRAINT leases_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: memberships memberships_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -290,6 +344,41 @@ CREATE UNIQUE INDEX idx_invitations_unique_pending_per_tenant_email ON public.in
 
 
 --
+-- Name: idx_lease_parties_counterparty_id_tenant_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_lease_parties_counterparty_id_tenant_id ON public.lease_parties USING btree (counterparty_id, tenant_id);
+
+
+--
+-- Name: idx_lease_parties_unique_per_lease; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_lease_parties_unique_per_lease ON public.lease_parties USING btree (lease_id, counterparty_id);
+
+
+--
+-- Name: idx_leases_id_tenant_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_leases_id_tenant_id ON public.leases USING btree (id, tenant_id);
+
+
+--
+-- Name: idx_leases_property_id_tenant_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_leases_property_id_tenant_id ON public.leases USING btree (property_id, tenant_id);
+
+
+--
+-- Name: idx_leases_unique_code_per_tenant; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_leases_unique_code_per_tenant ON public.leases USING btree (tenant_id, code) WHERE (code IS NOT NULL);
+
+
+--
 -- Name: idx_properties_id_tenant_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -329,6 +418,20 @@ CREATE INDEX index_invitations_on_tenant_id ON public.invitations USING btree (t
 --
 
 CREATE UNIQUE INDEX index_invitations_on_token ON public.invitations USING btree (token);
+
+
+--
+-- Name: index_lease_parties_on_tenant_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_lease_parties_on_tenant_id ON public.lease_parties USING btree (tenant_id);
+
+
+--
+-- Name: index_leases_on_tenant_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_leases_on_tenant_id ON public.leases USING btree (tenant_id);
 
 
 --
@@ -385,6 +488,46 @@ CREATE UNIQUE INDEX index_users_on_email ON public.users USING btree (email);
 --
 
 CREATE UNIQUE INDEX index_users_on_reset_password_token ON public.users USING btree (reset_password_token);
+
+
+--
+-- Name: lease_parties fk_lease_parties_counterparty_same_tenant; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.lease_parties
+    ADD CONSTRAINT fk_lease_parties_counterparty_same_tenant FOREIGN KEY (counterparty_id, tenant_id) REFERENCES public.counterparties(id, tenant_id);
+
+
+--
+-- Name: lease_parties fk_lease_parties_lease_same_tenant; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.lease_parties
+    ADD CONSTRAINT fk_lease_parties_lease_same_tenant FOREIGN KEY (lease_id, tenant_id) REFERENCES public.leases(id, tenant_id);
+
+
+--
+-- Name: leases fk_leases_property_same_tenant; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.leases
+    ADD CONSTRAINT fk_leases_property_same_tenant FOREIGN KEY (property_id, tenant_id) REFERENCES public.properties(id, tenant_id);
+
+
+--
+-- Name: lease_parties fk_rails_3a6e0449ee; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.lease_parties
+    ADD CONSTRAINT fk_rails_3a6e0449ee FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
+
+
+--
+-- Name: leases fk_rails_40598ae6e6; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.leases
+    ADD CONSTRAINT fk_rails_40598ae6e6 FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
 
 
 --
@@ -470,6 +613,32 @@ CREATE POLICY invitations_tenant_isolation ON public.invitations USING ((tenant_
 
 
 --
+-- Name: lease_parties; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.lease_parties ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: lease_parties lease_parties_tenant_isolation; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY lease_parties_tenant_isolation ON public.lease_parties USING ((tenant_id = public.app_current_tenant_id())) WITH CHECK ((tenant_id = public.app_current_tenant_id()));
+
+
+--
+-- Name: leases; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.leases ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: leases leases_tenant_isolation; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY leases_tenant_isolation ON public.leases USING ((tenant_id = public.app_current_tenant_id())) WITH CHECK ((tenant_id = public.app_current_tenant_id()));
+
+
+--
 -- Name: memberships; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -509,6 +678,8 @@ CREATE POLICY properties_tenant_isolation ON public.properties USING ((tenant_id
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261031180001'),
+('20261031180000'),
 ('20261031150001'),
 ('20261031150000'),
 ('20261031133227'),

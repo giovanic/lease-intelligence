@@ -11,8 +11,16 @@ Rails-8-generated `db/cable_schema.rb`/`cache_schema.rb`/`queue_schema.rb`
 (Solid Cable/Cache/Queue support schemas, unrelated to the primary
 database). Portfolio is implemented too: `properties` and
 `counterparties` (`apps/api/db/migrate/20261031150000*`/`150001*`), each
-with RLS + a unique `(id, tenant_id)` index ready for the composite
-foreign keys leases will need. No other module's tables exist yet.
+with RLS + a unique `(id, tenant_id)` index. Leases use them:
+`leases` (`20261031180000`) and `lease_parties` (`20261031180001`) point
+at properties/counterparties/leases through composite foreign keys on
+`(id, tenant_id)` (`fk_leases_property_same_tenant`,
+`fk_lease_parties_*_same_tenant`) — the reference pattern for any child
+of a tenant-owned table. No other module's tables exist yet.
+
+`db/structure.sql` must load on the CI's PostgreSQL 16: a dump made by a
+newer local server/`pg_dump` may add `SET transaction_timeout = 0;`
+(PG 17+), which PG 16 rejects — drop that line before committing.
 
 Local Postgres setup actually in place: a dedicated role
 `lease_intelligence` (non-superuser, no `BYPASSRLS`, **does** have
