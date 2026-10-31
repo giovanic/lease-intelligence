@@ -27,6 +27,7 @@ field, and verify against the actual code before relying on it.
 | [0014](0014-spa-routing-react-router.md) | SPA routing with React Router (declarative mode) | Implemented |
 | [0015](0015-document-file-storage-and-access.md) | Document file storage and access | Implemented |
 | [0016](0016-document-text-extraction.md) | Document text extraction (native PDF text + Tesseract OCR) | Implemented |
+| [0017](0017-contract-field-extraction-claude.md) | Contract field extraction with the Claude API | Proposed |
 
 ## How to propose a new ADR
 
