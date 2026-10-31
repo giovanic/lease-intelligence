@@ -48,6 +48,31 @@ CREATE TABLE public.ar_internal_metadata (
 
 
 --
+-- Name: counterparties; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.counterparties (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    tenant_id uuid NOT NULL,
+    kind character varying NOT NULL,
+    legal_name character varying NOT NULL,
+    trade_name character varying,
+    tax_id character varying,
+    email character varying,
+    phone character varying,
+    status character varying DEFAULT 'active'::character varying NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT counterparties_email_lowercase_check CHECK (((email IS NULL) OR ((email)::text = lower((email)::text)))),
+    CONSTRAINT counterparties_kind_check CHECK (((kind)::text = ANY ((ARRAY['individual'::character varying, 'company'::character varying])::text[]))),
+    CONSTRAINT counterparties_status_check CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'archived'::character varying])::text[]))),
+    CONSTRAINT counterparties_tax_id_format_check CHECK (((tax_id IS NULL) OR (((kind)::text = 'individual'::text) AND ((tax_id)::text ~ '^[0-9]{11}$'::text)) OR (((kind)::text = 'company'::text) AND ((tax_id)::text ~ '^[0-9]{14}$'::text))))
+);
+
+ALTER TABLE ONLY public.counterparties FORCE ROW LEVEL SECURITY;
+
+
+--
 -- Name: invitations; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -90,6 +115,39 @@ CREATE TABLE public.memberships (
 );
 
 ALTER TABLE ONLY public.memberships FORCE ROW LEVEL SECURITY;
+
+
+--
+-- Name: properties; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.properties (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    tenant_id uuid NOT NULL,
+    name character varying NOT NULL,
+    code character varying,
+    property_type character varying NOT NULL,
+    status character varying DEFAULT 'active'::character varying NOT NULL,
+    street character varying NOT NULL,
+    number character varying,
+    complement character varying,
+    district character varying,
+    city character varying NOT NULL,
+    state character varying NOT NULL,
+    postal_code character varying,
+    country_code character varying DEFAULT 'BR'::character varying NOT NULL,
+    area_sqm numeric(12,2),
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT properties_area_sqm_positive_check CHECK (((area_sqm IS NULL) OR (area_sqm > (0)::numeric))),
+    CONSTRAINT properties_country_code_format_check CHECK (((country_code)::text ~ '^[A-Z]{2}$'::text)),
+    CONSTRAINT properties_postal_code_format_check CHECK (((postal_code IS NULL) OR ((postal_code)::text ~ '^[0-9]{8}$'::text))),
+    CONSTRAINT properties_property_type_check CHECK (((property_type)::text = ANY ((ARRAY['retail'::character varying, 'clinic'::character varying, 'office'::character varying, 'restaurant'::character varying, 'gym'::character varying, 'school'::character varying, 'warehouse'::character varying, 'other'::character varying])::text[]))),
+    CONSTRAINT properties_state_format_check CHECK (((state)::text ~ '^[A-Z]{2}$'::text)),
+    CONSTRAINT properties_status_check CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'archived'::character varying])::text[])))
+);
+
+ALTER TABLE ONLY public.properties FORCE ROW LEVEL SECURITY;
 
 
 --
@@ -148,6 +206,14 @@ ALTER TABLE ONLY public.ar_internal_metadata
 
 
 --
+-- Name: counterparties counterparties_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.counterparties
+    ADD CONSTRAINT counterparties_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: invitations invitations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -161,6 +227,14 @@ ALTER TABLE ONLY public.invitations
 
 ALTER TABLE ONLY public.memberships
     ADD CONSTRAINT memberships_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: properties properties_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.properties
+    ADD CONSTRAINT properties_pkey PRIMARY KEY (id);
 
 
 --
@@ -188,6 +262,20 @@ ALTER TABLE ONLY public.users
 
 
 --
+-- Name: idx_counterparties_id_tenant_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_counterparties_id_tenant_id ON public.counterparties USING btree (id, tenant_id);
+
+
+--
+-- Name: idx_counterparties_unique_tax_id_per_tenant; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_counterparties_unique_tax_id_per_tenant ON public.counterparties USING btree (tenant_id, tax_id) WHERE (tax_id IS NOT NULL);
+
+
+--
 -- Name: idx_invitations_id_tenant_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -199,6 +287,27 @@ CREATE UNIQUE INDEX idx_invitations_id_tenant_id ON public.invitations USING btr
 --
 
 CREATE UNIQUE INDEX idx_invitations_unique_pending_per_tenant_email ON public.invitations USING btree (tenant_id, email) WHERE ((status)::text = 'pending'::text);
+
+
+--
+-- Name: idx_properties_id_tenant_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_properties_id_tenant_id ON public.properties USING btree (id, tenant_id);
+
+
+--
+-- Name: idx_properties_unique_code_per_tenant; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_properties_unique_code_per_tenant ON public.properties USING btree (tenant_id, code) WHERE (code IS NOT NULL);
+
+
+--
+-- Name: index_counterparties_on_tenant_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_counterparties_on_tenant_id ON public.counterparties USING btree (tenant_id);
 
 
 --
@@ -251,6 +360,13 @@ CREATE INDEX index_memberships_on_user_id ON public.memberships USING btree (use
 
 
 --
+-- Name: index_properties_on_tenant_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_properties_on_tenant_id ON public.properties USING btree (tenant_id);
+
+
+--
 -- Name: index_tenants_on_slug; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -288,11 +404,27 @@ ALTER TABLE ONLY public.memberships
 
 
 --
+-- Name: properties fk_rails_d584945dc4; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.properties
+    ADD CONSTRAINT fk_rails_d584945dc4 FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
+
+
+--
 -- Name: invitations fk_rails_d799c974a1; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.invitations
     ADD CONSTRAINT fk_rails_d799c974a1 FOREIGN KEY (invited_by_id) REFERENCES public.users(id);
+
+
+--
+-- Name: counterparties fk_rails_f00102f981; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.counterparties
+    ADD CONSTRAINT fk_rails_f00102f981 FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
 
 
 --
@@ -309,6 +441,19 @@ ALTER TABLE ONLY public.invitations
 
 ALTER TABLE ONLY public.memberships
     ADD CONSTRAINT memberships_invitation_same_tenant FOREIGN KEY (invitation_id, tenant_id) REFERENCES public.invitations(id, tenant_id);
+
+
+--
+-- Name: counterparties; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.counterparties ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: counterparties counterparties_tenant_isolation; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY counterparties_tenant_isolation ON public.counterparties USING ((tenant_id = public.app_current_tenant_id())) WITH CHECK ((tenant_id = public.app_current_tenant_id()));
 
 
 --
@@ -345,12 +490,27 @@ CREATE POLICY memberships_tenant_isolation ON public.memberships USING ((tenant_
 
 
 --
+-- Name: properties; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.properties ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: properties properties_tenant_isolation; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY properties_tenant_isolation ON public.properties USING ((tenant_id = public.app_current_tenant_id())) WITH CHECK ((tenant_id = public.app_current_tenant_id()));
+
+
+--
 -- PostgreSQL database dump complete
 --
 
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261031150001'),
+('20261031150000'),
 ('20261031133227'),
 ('20261031133226'),
 ('20261031133225'),

@@ -22,7 +22,7 @@ domain. Two deployable units:
         |         \
         |          \--> [PostgreSQL: shared schema + RLS] (ADR-002, ADR-003)
         |
-        \--> [Background jobs] --(TBD: Sidekiq+Redis or Solid Queue — ADR-006)
+        \--> [Background jobs] --(Sidekiq + Redis — ADR-006)
                     |
                     \--> [OCR provider] (ADR-008, abstracted)
                     \--> [LLM provider] (ADR-009, abstracted)
@@ -74,9 +74,8 @@ tenant-owned table, PostgreSQL Row-Level Security as the enforced boundary
 
 Must be asynchronous, idempotent, and tenant-context-aware (a job must
 re-establish tenant context explicitly — it cannot inherit request-local
-state). The adapter (Sidekiq+Redis vs. Solid Queue) is currently
-undecided in practice — see the inconsistency note in root `CLAUDE.md` and
-ADR-006.
+state). Runs on Sidekiq + Redis (ADR-006); `ApplicationJob#within_tenant`
+re-establishes tenant context.
 
 ## External integrations
 

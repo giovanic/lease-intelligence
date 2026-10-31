@@ -63,5 +63,10 @@ module Api
     # SPA is served same-origin (Vite proxy in dev, reverse proxy in prod).
     config.x.extra_allowed_origins = ENV.fetch("APP_EXTRA_ALLOWED_ORIGINS", "")
       .split(",").map(&:strip).reject(&:empty?)
+
+    # Background jobs run on Sidekiq + Redis in every environment except
+    # test (docs/adr/0006-background-processing-sidekiq.md). Redis
+    # location and queues: config/initializers/sidekiq.rb, config/sidekiq.yml.
+    config.active_job.queue_adapter = :sidekiq
   end
 end

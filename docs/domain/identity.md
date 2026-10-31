@@ -52,7 +52,8 @@ see `docs/adr/0003-postgresql-rls.md` addendum and
 Pundit installed. Policies receive an `AuthorizationContext(user,
 membership)` (membership is nil outside tenant-scoped endpoints) and
 decide allow/deny per action; `ApplicationPolicy` denies everything by
-default. Only `UserPolicy#show?` and `MembershipPolicy#show?` exist so far. Role granularity
+default. `UserPolicy#show?`, `MembershipPolicy#show?` and the Portfolio
+policies (`docs/domain/portfolio.md`) exist so far. Role granularity
 within a tenant is enforced in policies, not scattered as ad hoc
 `if current_user.admin?` checks in controllers.
 

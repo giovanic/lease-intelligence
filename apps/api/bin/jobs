@@ -1,6 +1,6 @@
-#!/usr/bin/env ruby
-
-require_relative "../config/environment"
-require "solid_queue/cli"
-
-SolidQueue::Cli.start(ARGV)
+#!/usr/bin/env bash
+# Starts the Sidekiq worker that runs Active Job (docs/adr/0006).
+# Needs Redis (REDIS_URL, default redis://localhost:6379/0).
+set -e
+cd "$(dirname "$0")/.."
+exec bundle exec sidekiq -C config/sidekiq.yml "$@"

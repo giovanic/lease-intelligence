@@ -16,7 +16,7 @@ field, and verify against the actual code before relying on it.
 | [0003](0003-postgresql-rls.md) | PostgreSQL Row-Level Security | Decided, not implemented |
 | [0004](0004-uuid-primary-keys.md) | UUID primary keys | Decided, not implemented |
 | [0005](0005-rails-api-react-frontend-separation.md) | Rails API + React frontend separation | Decided, partially scaffolded |
-| [0006](0006-background-processing-sidekiq.md) | Background processing (Sidekiq) | **Conflicted — needs resolution** |
+| [0006](0006-background-processing-sidekiq.md) | Background processing (Sidekiq) | Accepted — implemented |
 | [0007](0007-private-object-storage.md) | Private object storage | Decided, not implemented |
 | [0008](0008-ocr-provider-abstraction.md) | OCR provider abstraction | Decided, not implemented |
 | [0009](0009-llm-provider-abstraction.md) | LLM provider abstraction | Decided, not implemented |
