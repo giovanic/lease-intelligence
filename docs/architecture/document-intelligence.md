@@ -1,0 +1,69 @@
+# Document Intelligence Architecture
+
+Status: planned. No document pipeline code exists yet. This describes the
+target design referenced by `apps/api/CLAUDE.md` §8.
+
+## Document lifecycle
+
+`ContractDocument` (conceptual contract, e.g. "the lease for Unit 42") has
+many `DocumentVersion`s (the original signed PDF, later an amendment file,
+etc.). A `DocumentVersion` file is immutable once stored — corrections
+produce a new version, never an overwrite.
+
+## File storage
+
+Active Storage backed by private, S3-compatible object storage (ADR-007).
+No public/permanent URLs; access is via short-lived signed URLs issued only
+after tenant/authorization checks. SHA-256 checksum computed on upload and
+stored, both for integrity verification and duplicate detection.
+
+## OCR pipeline
+
+1. Upload, validate file type/size.
+2. Checksum.
+3. Store privately.
+4. Attempt native PDF text extraction first.
+5. Fall back to OCR when native extraction is insufficient (scanned
+   documents, images).
+6. Normalize pages (orientation, encoding) before downstream steps.
+
+OCR is accessed through a provider abstraction (ADR-008) so the vendor can
+change without touching pipeline code. Uploaded document content is treated
+as untrusted input throughout — it is never interpolated unescaped into any
+executed command, and it is never sent to an AI provider with unrestricted,
+user-controllable instructions (see `.claude/rules/ai-processing.md`).
+
+## LLM abstraction
+
+Structured extraction is performed through an internal LLM provider
+interface (ADR-009): given normalized document text, request a
+schema-validated structured output (parties, dates, monetary terms,
+indexation clause, renewal terms, etc.). Each call records provider, model,
+model version, prompt version, input document version, status, token
+usage/cost where available, execution time, and errors — this is the
+`ExtractionRun` record.
+
+## Structured extraction and evidence references
+
+Each field produced by an `ExtractionRun` becomes an immutable
+`ExtractedField`, and each `ExtractedField` must carry one or more
+`EvidenceReference`s pointing back to the source document/page/text span it
+was derived from. A field with no evidence is not valid output — reject it
+at the schema-validation step rather than let it reach review with no
+justification shown to the human reviewer.
+
+## Human review
+
+A `ReviewDecision` is a human's approve / edit-then-approve / reject action
+on one `ExtractedField`. It never mutates the original `ExtractedField` —
+the raw AI output stays immutable for audit and model-evaluation purposes.
+An edit-then-approve produces a distinct "approved value" tied to the
+decision, which is what feeds into contractual facts.
+
+## Contractual fact approval
+
+Only an approved `ReviewDecision` can promote a value into the lease's
+`ContractualCondition`s. Nothing downstream (dashboards, obligation
+generation, calendar) may read directly from `ExtractedField` — they must
+read from approved facts. This is the enforced boundary between "AI said"
+and "the business has confirmed."

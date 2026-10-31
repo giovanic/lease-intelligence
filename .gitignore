@@ -1,0 +1,29 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# Ruby / Rails
+**/vendor/bundle/
+**/tmp/
+**/log/
+**/storage/*
+!**/storage/.keep
+**/coverage/
+**/.bundle/
+
+# Node
+**/node_modules/
+**/dist/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude local settings
+.claude/settings.local.json
