@@ -3,10 +3,10 @@
 Status: implemented for Identity & Tenancy (`Tenant`, `User`,
 `Membership`, `Invitation`, RLS policies, and the transaction-scoped
 `TenantContext` service — see `apps/api/app/services/tenant_context.rb`
-and `docs/domain/identity.md`). There is still no HTTP-request-level
-middleware wiring `TenantContext` to an authenticated controller action
-(no controllers exist in this data-layer phase), and no other module's
-tables exist yet — each must independently follow this design. See
+and `docs/domain/identity.md`) and at request level by the `TenantScoped`
+controller concern (`X-Tenant-Id` validated against the user's active
+membership in an active tenant, whole action inside `TenantContext` —
+ADR-0013). No other module's tables exist yet — each must independently follow this design. See
 ADR-0002 and ADR-0003 (including its addendum on the schema-format
 requirement and the self-visibility bootstrap policy).
 

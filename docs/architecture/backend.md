@@ -12,8 +12,8 @@ the wired ActiveJob adapter), rack-attack, rspec-rails 8, factory_bot_rails
 6.5, shoulda-matchers 8, brakeman, rubocop-rails-omakase, bootsnap, kamal,
 thruster.
 
-Not yet in the Gemfile but implied by product requirements: `rack-cors`
-(needed for the SPA to call the API cross-origin), an image/PDF processing
+`rack-cors` is deliberately not used — the SPA is same-origin (ADR-0013).
+Not yet in the Gemfile but implied by product requirements: an image/PDF processing
 gem for OCR pre-processing if needed, a JSON schema validation gem for
 structured AI output (or hand-rolled validation).
 
@@ -58,6 +58,7 @@ and must surface terminal failures to a reviewable status, not swallow them.
 
 ## What does not exist yet (do not assume)
 
-No domain namespacing decided/implemented, no serializer library chosen, no
-API versioning scaffolding beyond the documented `/api/v1` convention, no
-rate limiting configuration for rack-attack, no pagination helper in place.
+No serializer library (plain serializer classes in `app/serializers`), no
+pagination helper in place. Domain code so far lives in
+`app/services/identity/`; services return `ServiceResult`. Rack::Attack
+only throttles sign-in (`config/initializers/rack_attack.rb`).

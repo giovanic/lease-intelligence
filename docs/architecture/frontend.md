@@ -45,4 +45,7 @@ apps/web/src/
 
 No routing library decision, no design system, no form library decision, no
 test runner (no Vitest/Jest configured), no `.env` convention for API base
-URL, no auth token storage strategy implemented.
+URL. Auth strategy is decided (ADR-0013): httpOnly session cookie, no
+token in JS; the API client must send `X-Tenant-Id` on tenant-scoped
+calls and the Vite dev server must proxy `/api` to Rails — neither is
+built yet.

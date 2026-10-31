@@ -44,5 +44,24 @@ module Api
     # environment rebuilt from schema.rb (e.g. `db:test:prepare`) would
     # silently lose all RLS protection. docs/adr/0003-postgresql-rls.md.
     config.active_record.schema_format = :sql
+
+    # The SPA authenticates with a Devise/Warden session in an httpOnly,
+    # SameSite=Lax cookie (docs/adr/0013-spa-session-auth-and-tenant-selection.md).
+    # api_only strips the cookie/session middleware, so it is re-added here
+    # — *outside* Warden, so a session Warden ends (logout, idle timeout via
+    # `throw :warden`) is still committed back to the cookie.
+    config.session_store :cookie_store,
+      key: "_lease_intelligence_session",
+      httponly: true,
+      same_site: :lax,
+      secure: !(Rails.env.development? || Rails.env.test?)
+    config.middleware.insert_before Warden::Manager, ActionDispatch::Cookies
+    config.middleware.insert_before Warden::Manager, config.session_store, config.session_options
+
+    # Extra origins allowed to send state-changing requests besides the
+    # API's own origin (RequestOriginVerification). Empty by default: the
+    # SPA is served same-origin (Vite proxy in dev, reverse proxy in prod).
+    config.x.extra_allowed_origins = ENV.fetch("APP_EXTRA_ALLOWED_ORIGINS", "")
+      .split(",").map(&:strip).reject(&:empty?)
   end
 end

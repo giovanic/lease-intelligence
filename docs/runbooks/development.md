@@ -15,6 +15,10 @@
 
 ## Standard feature workflow
 
+0. Branch — at the start of every new phase, create a new branch from an
+   up-to-date `main` (`git switch main && git pull && git switch -c
+   phase/<short-kebab-name>`) before touching code. Never start a phase
+   on `main` or on the previous phase's branch.
 1. Requirement analysis — read the actual request/ticket.
 2. Review relevant product docs (`docs/product/`).
 3. Review relevant architecture docs (`docs/architecture/`, relevant ADRs

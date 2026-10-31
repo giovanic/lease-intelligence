@@ -55,10 +55,17 @@ class TenantContext
 
     private
 
+    # `uncached` is load-bearing: inside a request Rails enables the query
+    # cache, and an identical `SELECT set_config(...)` would otherwise be
+    # answered from the cache WITHOUT executing — silently skipping a
+    # context switch (A -> B -> A stays on B) or the reset in `ensure`.
     def set_local(setting, value)
-      ActiveRecord::Base.connection.select_value(
-        "SELECT set_config(#{ActiveRecord::Base.connection.quote(setting)}, #{ActiveRecord::Base.connection.quote(value.to_s)}, true)"
-      )
+      connection = ActiveRecord::Base.connection
+      connection.uncached do
+        connection.select_value(
+          "SELECT set_config(#{connection.quote(setting)}, #{connection.quote(value.to_s)}, true)"
+        )
+      end
     end
   end
 end
