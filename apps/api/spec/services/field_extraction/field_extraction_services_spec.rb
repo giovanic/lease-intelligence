@@ -2,7 +2,8 @@ require "rails_helper"
 
 # docs/adr/0017-contract-field-extraction-claude.md
 RSpec.describe "FieldExtraction services" do
-  let(:tenant) { create(:tenant) }
+  # The organization consented to AI extraction (docs/adr/0018); the default is off.
+  let(:tenant) { create(:tenant, ai_extraction_enabled: true) }
   let(:user) { create(:user) }
   let(:llm) { FieldExtractionHelpers::FakeLlm.new }
   let!(:version) do
@@ -98,6 +99,15 @@ RSpec.describe "FieldExtraction services" do
       expect(with_tenant(tenant) { ExtractionRun.count }).to eq(0)
     end
 
+    it "is disabled while the organization has not turned AI extraction on — nothing is created or queued" do
+      tenant.update!(ai_extraction_enabled: false)
+      result = nil
+
+      expect { result = request }.not_to have_enqueued_job(ExtractContractFieldsJob)
+      expect(result.error).to eq("disabled")
+      expect(with_tenant(tenant) { ExtractionRun.count }).to eq(0)
+    end
+
     it "fails with text_not_ready when the version has no succeeded text extraction" do
       with_tenant(tenant) { text.update!(status: :failed, error_code: "unreadable_file") }
 
@@ -128,6 +138,16 @@ RSpec.describe "FieldExtraction services" do
 
       expect(result.value.map(&:number)).to eq([ 1, 2 ])
       expect(with_tenant(tenant) { run.reload }).to be_running
+    end
+
+    it "closes the run as ai_disabled when the organization turned AI extraction off after it was queued" do
+      run = with_tenant(tenant) { create(:extraction_run, text_extraction: text) }
+      tenant.update!(ai_extraction_enabled: false)
+
+      result = with_tenant(tenant) { described_class.call(run.id) }
+
+      expect(result.error).to eq("disabled")
+      expect(with_tenant(tenant) { run.reload }).to have_attributes(status: "failed", error_code: "ai_disabled")
     end
 
     it "fails for a finished run" do
@@ -173,8 +193,8 @@ RSpec.describe "FieldExtraction services" do
       expect { described_class.call(pages: pages, provider: llm) }.to raise_error(Llm::Error)
     end
 
-    it "fails with text_too_long above MAX_INPUT_CHARACTERS, without calling the provider" do
-      stub_const("ExtractionRun::MAX_INPUT_CHARACTERS", 20)
+    it "fails with text_too_long above the provider's max_input_characters, without calling it" do
+      llm = FieldExtractionHelpers::FakeLlm.new(max_input_characters: 20)
 
       expect(described_class.call(pages: pages, provider: llm).error).to eq("text_too_long")
       expect(llm.requests).to be_empty

@@ -53,5 +53,13 @@ RSpec.describe Tenant, type: :model do
         SQL
       }.to raise_error(ActiveRecord::RecordNotUnique)
     end
+
+    it "starts with AI extraction off and requires who and when to be recorded together (docs/adr/0018)" do
+      tenant = create(:tenant)
+      expect(tenant.reload.ai_extraction_enabled).to be(false)
+
+      expect { tenant.update_columns(ai_extraction_changed_at: Time.current) }
+        .to raise_error(ActiveRecord::StatementInvalid, /tenants_ai_extraction_change_recorded/)
+    end
   end
 end

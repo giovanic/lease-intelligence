@@ -9,8 +9,13 @@
   or run the specs. Local: `redis-server` (default
   `redis://localhost:6379/0`, override with `REDIS_URL`). Worker:
   `cd apps/api && bin/jobs`.
-- No `infrastructure/docker-compose.yml` exists yet — there is currently
-  no one-command way to stand up Postgres and Redis locally.
+- Or both at once, containerized: `docker compose -f
+  infrastructure/docker-compose.yml up -d` — PostgreSQL 16 (CI's version)
+  on host port **5434** (so it coexists with host clusters on 5432/5433)
+  with the `lease_intelligence` role created `NOSUPERUSER NOBYPASSRLS
+  CREATEDB` on first start, and Redis on 6379. Point the app at it with
+  `LEASE_INTELLIGENCE_DATABASE_PORT=5434`, then `bin/rails db:prepare`.
+  The full suite was verified green against it.
 
 ## Standard feature workflow
 
@@ -61,13 +66,24 @@ skipped locally (never in CI). Text extraction runs in the worker
 (`bin/jobs`, needs Redis on `localhost:6379`); without it, uploads stay
 "Na fila" in the SPA.
 
-AI field extraction (ADR-0017) is off unless a Claude API key is
-configured — `ANTHROPIC_API_KEY` in the environment of the web and worker
-processes, or `anthropic: { api_key: ... }` in Rails credentials. Without
-it, no run is requested after a text extraction and "Extrair campos"
-answers that the feature is not configured. With it, the text of every
-uploaded contract is sent to Anthropic (a third-party processor — read the
-LGPD notes in ADR-0017 before using real contracts).
+AI field extraction (ADR-0017, ADR-0018) needs two things:
+
+1. **A provider for the deployment**, in the environment of the web and
+   worker processes:
+   - local, free, nothing leaves the host — `LLM_PROVIDER=ollama`, with
+     Ollama running natively (`ollama pull qwen2.5:7b`; `OLLAMA_URL`,
+     `OLLAMA_MODEL`, `OLLAMA_NUM_CTX` override the defaults). On an 8 GB
+     GPU, `OLLAMA_NUM_CTX=16384` keeps the model entirely on the GPU
+     (measured: 59 s instead of 177 s for a 2-page contract) at the cost
+     of a ~24 000-character input limit (about 8–10 pages); the default
+     32768 reads ~74 000 characters but spills to the CPU. Never use a
+     `:cloud` model — the adapter refuses them;
+   - Claude — `LLM_PROVIDER=anthropic` (or unset) plus `ANTHROPIC_API_KEY`
+     (or `anthropic: { api_key: ... }` in credentials). The text of every
+     contract is sent to Anthropic: read the LGPD notes in ADR-0017 first.
+2. **The organization's consent**: off by default; an owner/admin turns it
+   on in the SPA's "Configurações". Off, no run is requested after a text
+   extraction and the documents table says "IA desligada".
 
 No `bin/dev` Procfile-based multi-process setup has been inspected beyond
 the default `bin/dev` script already present — verify its contents before
@@ -86,6 +102,6 @@ built, document the convention here.
 
 ## Known gaps to close before "normal" day-to-day dev is smooth
 
-CORS config, local Postgres (and possibly Redis) orchestration via
-`infrastructure/`, Devise/Pundit install, first domain migration with UUID
-PKs + RLS wired from the start.
+CORS config, Devise/Pundit install, first domain migration with UUID
+PKs + RLS wired from the start. (Local Postgres/Redis orchestration now
+exists: `infrastructure/docker-compose.yml`.)

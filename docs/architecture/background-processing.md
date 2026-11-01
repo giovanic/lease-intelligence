@@ -76,4 +76,3 @@ end
 - Sidekiq Web UI (needs authentication + security review before mounting).
 - Periodic jobs (Sidekiq OSS has no scheduler — decide when the first one
   is needed).
-- `infrastructure/docker-compose.yml` for Redis/Postgres.

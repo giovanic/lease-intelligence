@@ -6,16 +6,22 @@ module FieldExtractionHelpers
   class FakeLlm
     attr_reader :requests
 
-    def initialize(output = nil, error: nil, model_version: "fake-model-2026")
+    def initialize(output = nil, error: nil, model_version: "fake-model-2026", max_input_characters: 1_000_000,
+      external: false)
       @output = output
       @error = error
       @model_version = model_version
+      @max_input_characters = max_input_characters
+      @external = external
       @requests = []
     end
+
+    attr_reader :max_input_characters
 
     def name = "fake"
     def model = "fake-model"
     def effort = "high"
+    def external? = @external
 
     def extract(instructions:, document:, schema:)
       @requests << { instructions: instructions, document: document, schema: schema }

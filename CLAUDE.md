@@ -34,10 +34,11 @@ apps/api/   Rails 8 API-only app (Ruby 3.3.13). Identity & Tenancy
             (contract_documents + immutable document_versions, upload,
             5-minute download links — ADR-0015) and text extraction
             (native PDF text + local Tesseract OCR per page, Sidekiq job,
-            ADR-0016) and AI field extraction (Claude via the Llm
-            interface, evidence verified against the stored text,
-            unreviewed candidates only — ADR-0017). No review or
-            conditions yet.
+            ADR-0016) and AI field extraction (Claude or a local
+            Ollama model via the Llm interface, per-organization
+            consent off by default, evidence verified against the
+            stored text, unreviewed candidates only — ADR-0017/0018).
+            No review or conditions yet.
 apps/web/   Vite + React 19 + TypeScript SPA. Login -> organization
             picker -> routed workspace (React Router, ADR-0014) with
             properties, counterparties and leases screens; services/
@@ -45,7 +46,8 @@ apps/web/   Vite + React 19 + TypeScript SPA. Login -> organization
 .github/    CI (workflows/ci.yml) + dependabot, at the repo root.
 docs/       product / architecture / domain / adr / runbooks (scaffolded,
             now populated by this harness).
-infrastructure/   empty — no docker-compose, no IaC yet.
+infrastructure/   docker-compose.yml for local Postgres 16 + Redis (dev
+                  only; no IaC yet).
 scripts/          empty — no validation/dev scripts yet.
 .claude/    agents, rules, skills (scaffolded, now populated).
 ```
@@ -80,9 +82,10 @@ build on top of them silently; surface them when relevant:
    active memberships, Rack::Attack on sign-in. The SPA login /
    organization picker is built. Not built: sign-up/org creation,
    invitation acceptance, password reset.
-4. **No local orchestration.** `infrastructure/` is empty — no
-   `docker-compose.yml` for Postgres/Redis/local dev. `apps/api/Dockerfile`
-   is production-only (Kamal-oriented).
+4. **Local orchestration: dev only.** `infrastructure/docker-compose.yml`
+   runs Postgres 16 (port 5434, RLS-safe app role) and Redis; Ollama runs
+   natively (GPU). `apps/api/Dockerfile` is production-only
+   (Kamal-oriented); there is no IaC.
 5. **RLS and the Identity & Tenancy schema are now implemented**
    (`tenants`, `users`, `memberships`, `invitations` — see
    `docs/domain/identity.md`, `docs/adr/0003-postgresql-rls.md`), and so
@@ -105,11 +108,11 @@ build on top of them silently; surface them when relevant:
 6. **Git topology: single monorepo at the root.** The nested
    `apps/api/.git` no longer exists; commit everything from the root
    repository, one branch per phase (§5).
-7. **`json` gem pinned to `~> 2.16`** in `apps/api/Gemfile`: json 3.x
-   breaks ActiveSupport 8.0's encoder (`unknown keyword: quirks_mode` on
-   every `render json:`). Remove the pin only together with a Rails
-   upgrade that fixes it. Rails 8.0 support ends 2026-11-07 (Brakeman
-   EOLRails warning) — plan the upgrade.
+7. **Rails/json: resolved.** `apps/api` is on Rails `~> 8.1.4` with
+   `json ~> 3.1` (the old `~> 2.16` pin existed only because json 3.x
+   broke ActiveSupport 8.0's encoder). The Rails 8.0 end-of-life entry was
+   removed from `config/brakeman.ignore`, which is now empty — any
+   Brakeman warning fails CI again.
 
 ## 4. NON-NEGOTIABLE SAFETY RULES
 

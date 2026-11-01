@@ -271,3 +271,8 @@ Verified with a stand-in provider only: **no request has been made to the
 real Claude API yet** (no key in development or CI). Not built: per-tenant
 opt-in, cost computation, an annotated dataset to measure accuracy,
 `ReviewDecision` (next phase).
+
+Extended by ADR-0018: a local Ollama adapter as an alternative provider
+(`LLM_PROVIDER`), a per-provider input limit (`max_input_characters`
+replaces `ExtractionRun::MAX_INPUT_CHARACTERS`), and per-organization
+consent (off by default) — the "per-tenant opt-in" above.

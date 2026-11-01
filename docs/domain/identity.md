@@ -17,7 +17,11 @@ API level per ADR-0013 (`/api/v1/session`, `/api/v1/me`,
   `has_many :tenants, through: :memberships`.
 - **Tenant** (`tenants`, no RLS — root tenancy anchor, nothing to scope
   by) — `name`, `slug` (unique, lowercased, URL-safe format), `status`
-  enum (`active`/`suspended`/`canceled`, DB check constraint).
+  enum (`active`/`suspended`/`canceled`, DB check constraint),
+  `ai_extraction_enabled` (consent for AI field extraction, default
+  false) with `ai_extraction_changed_at`/`ai_extraction_changed_by_id`
+  (docs/adr/0018; changed by owner/admin through
+  `PATCH /api/v1/organization_settings`).
   `has_many :memberships`, `has_many :invitations`.
 - **Membership** (`memberships`, tenant-owned, RLS) — join of `User` and
   `Tenant`. `role` enum (`owner`/`admin`/`manager`/`analyst`/`viewer`,

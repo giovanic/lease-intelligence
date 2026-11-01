@@ -8,6 +8,8 @@ class Tenant < ApplicationRecord
   has_many :memberships, dependent: :restrict_with_error, inverse_of: :tenant
   has_many :users, through: :memberships
   has_many :invitations, dependent: :destroy, inverse_of: :tenant
+  # Who last turned AI field extraction on or off (docs/adr/0018).
+  belongs_to :ai_extraction_changed_by, class_name: "User", optional: true
 
   enum :status, { active: "active", suspended: "suspended", canceled: "canceled" }, default: "active"
 

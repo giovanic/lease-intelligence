@@ -170,7 +170,7 @@ CREATE TABLE public.document_text_extractions (
     CONSTRAINT document_text_extractions_error_code_check CHECK (((error_code IS NULL) OR ((error_code)::text = ANY ((ARRAY['unreadable_file'::character varying, 'encrypted_pdf'::character varying, 'too_many_pages'::character varying, 'timeout'::character varying, 'ocr_unavailable'::character varying, 'storage_unavailable'::character varying, 'abandoned'::character varying, 'internal_error'::character varying])::text[])))),
     CONSTRAINT document_text_extractions_error_code_iff_failed CHECK ((((status)::text = 'failed'::text) = (error_code IS NOT NULL))),
     CONSTRAINT document_text_extractions_status_check CHECK (((status)::text = ANY ((ARRAY['pending'::character varying, 'running'::character varying, 'succeeded'::character varying, 'failed'::character varying])::text[]))),
-    CONSTRAINT document_text_extractions_succeeded_counts CHECK ((((status)::text <> 'succeeded'::text) OR ((page_count >= 1) AND (native_page_count >= 0) AND (ocr_page_count >= 0) AND ((native_page_count + ocr_page_count) = page_count) AND (finished_at IS NOT NULL))))
+    CONSTRAINT document_text_extractions_succeeded_counts CHECK ((((status)::text <> 'succeeded'::text) OR (COALESCE(((page_count >= 1) AND (native_page_count >= 0) AND (ocr_page_count >= 0) AND ((native_page_count + ocr_page_count) = page_count)), false) AND (finished_at IS NOT NULL))))
 );
 
 ALTER TABLE ONLY public.document_text_extractions FORCE ROW LEVEL SECURITY;
@@ -304,7 +304,7 @@ CREATE TABLE public.extraction_runs (
     finished_at timestamp(6) without time zone,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT extraction_runs_error_code_check CHECK (((error_code IS NULL) OR ((error_code)::text = ANY ((ARRAY['rate_limited'::character varying, 'provider_unavailable'::character varying, 'timeout'::character varying, 'output_truncated'::character varying, 'refused'::character varying, 'invalid_output'::character varying, 'text_too_long'::character varying, 'abandoned'::character varying, 'internal_error'::character varying])::text[])))),
+    CONSTRAINT extraction_runs_error_code_check CHECK (((error_code IS NULL) OR ((error_code)::text = ANY ((ARRAY['rate_limited'::character varying, 'provider_unavailable'::character varying, 'timeout'::character varying, 'output_truncated'::character varying, 'refused'::character varying, 'invalid_output'::character varying, 'text_too_long'::character varying, 'abandoned'::character varying, 'internal_error'::character varying, 'ai_disabled'::character varying])::text[])))),
     CONSTRAINT extraction_runs_error_code_iff_failed CHECK ((((status)::text = 'failed'::text) = (error_code IS NOT NULL))),
     CONSTRAINT extraction_runs_status_check CHECK (((status)::text = ANY ((ARRAY['pending'::character varying, 'running'::character varying, 'succeeded'::character varying, 'failed'::character varying])::text[]))),
     CONSTRAINT extraction_runs_succeeded_counts CHECK ((((status)::text <> 'succeeded'::text) OR (COALESCE(((field_count >= 0) AND (rejected_field_count >= 0)), false) AND (model_version IS NOT NULL) AND (finished_at IS NOT NULL)))),
@@ -450,6 +450,10 @@ CREATE TABLE public.tenants (
     status character varying DEFAULT 'active'::character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    ai_extraction_enabled boolean DEFAULT false NOT NULL,
+    ai_extraction_changed_at timestamp(6) without time zone,
+    ai_extraction_changed_by_id uuid,
+    CONSTRAINT tenants_ai_extraction_change_recorded CHECK (((ai_extraction_changed_at IS NULL) = (ai_extraction_changed_by_id IS NULL))),
     CONSTRAINT tenants_slug_lowercase_check CHECK (((slug)::text = lower((slug)::text))),
     CONSTRAINT tenants_status_check CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'suspended'::character varying, 'canceled'::character varying])::text[])))
 );
@@ -1020,6 +1024,13 @@ CREATE INDEX index_properties_on_tenant_id ON public.properties USING btree (ten
 
 
 --
+-- Name: index_tenants_on_ai_extraction_changed_by_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_tenants_on_ai_extraction_changed_by_id ON public.tenants USING btree (ai_extraction_changed_by_id);
+
+
+--
 -- Name: index_tenants_on_slug; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1261,6 +1272,14 @@ ALTER TABLE ONLY public.contract_documents
 
 
 --
+-- Name: tenants fk_rails_c1707549f4; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tenants
+    ADD CONSTRAINT fk_rails_c1707549f4 FOREIGN KEY (ai_extraction_changed_by_id) REFERENCES public.users(id);
+
+
+--
 -- Name: properties fk_rails_d584945dc4; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1499,6 +1518,9 @@ CREATE POLICY properties_tenant_isolation ON public.properties USING ((tenant_id
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261101100002'),
+('20261101100001'),
+('20261101100000'),
 ('20261031230002'),
 ('20261031230001'),
 ('20261031230000'),

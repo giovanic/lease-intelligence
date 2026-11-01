@@ -3,6 +3,8 @@ import { EXTRACTION_RUN_ERROR_LABELS } from './fieldLabels'
 
 interface FieldExtractionStatusProps {
   run: ExtractionRun | null
+  /** The organization turned AI extraction on (docs/adr/0018); off, no run is requested or offered. */
+  aiEnabled: boolean
   textExtraction: TextExtraction | null
   canEdit: boolean
   requesting: boolean
@@ -15,10 +17,11 @@ interface FieldExtractionStatusProps {
  * Where a version's AI field extraction stands (docs/adr/0017): waiting for
  * the text, queued, running, done (with a button to show the candidates) or
  * failed (with why). Editors can start one once the text is extracted, or
- * retry a failure.
+ * retry a failure — only while the organization has AI extraction on.
  */
 export function FieldExtractionStatus({
   run,
+  aiEnabled,
   textExtraction,
   canEdit,
   requesting,
@@ -27,13 +30,21 @@ export function FieldExtractionStatus({
   onToggleFields,
 }: FieldExtractionStatusProps) {
   const action = (label: string) =>
-    canEdit && (
+    canEdit &&
+    aiEnabled && (
       <button type="button" className="button button--link" onClick={onRequest} disabled={requesting}>
         {requesting ? 'Pedindo…' : label}
       </button>
     )
 
   if (!run) {
+    if (!aiEnabled) {
+      return (
+        <span className="muted" title="Proprietários e administradores podem ligar em Configurações.">
+          IA desligada
+        </span>
+      )
+    }
     if (textExtraction?.status !== 'succeeded') return <span className="muted">Aguardando o texto</span>
     return (
       <span className="text-extraction">

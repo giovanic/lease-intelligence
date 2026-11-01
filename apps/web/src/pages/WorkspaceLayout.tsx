@@ -10,6 +10,7 @@ interface WorkspaceLayoutProps {
   current: CurrentMembershipState
   onSwitchOrganization: () => void
   onRetry: () => void
+  onRefresh: () => void
   onSignOut: () => void
 }
 
@@ -17,18 +18,28 @@ const NAV_ITEMS = [
   { to: '/leases', label: 'Contratos' },
   { to: '/properties', label: 'Imóveis' },
   { to: '/counterparties', label: 'Locadores e partes' },
+  { to: '/settings', label: 'Configurações' },
 ]
 
 /**
  * Shell of every routed screen. The screens (Outlet) only render once the
  * API confirmed the organization; they read it from WorkspaceContext.
  */
-export function WorkspaceLayout({ me, current, onSwitchOrganization, onRetry, onSignOut }: WorkspaceLayoutProps) {
+export function WorkspaceLayout({
+  me,
+  current,
+  onSwitchOrganization,
+  onRetry,
+  onRefresh,
+  onSignOut,
+}: WorkspaceLayoutProps) {
   return (
     <div className="app-layout">
       <header className="topbar">
         <div className="brand">
-          <span className="brand__mark" aria-hidden="true">LI</span>
+          <span className="brand__mark" aria-hidden="true">
+            LI
+          </span>
           <span className="brand__name">Lease Intelligence</span>
         </div>
         {current.status === 'ready' && (
@@ -74,7 +85,7 @@ export function WorkspaceLayout({ me, current, onSwitchOrganization, onRetry, on
               onRetry={onRetry}
             />
           ) : (
-            <WorkspaceContext.Provider value={workspaceFor(current.membership)}>
+            <WorkspaceContext.Provider value={workspaceFor(current.membership, onRefresh)}>
               <Outlet />
             </WorkspaceContext.Provider>
           )}

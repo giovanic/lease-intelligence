@@ -1,0 +1,42 @@
+# Local services for development (docs/runbooks/development.md): PostgreSQL
+# 16 — the version CI runs — and Redis for Sidekiq. Not a production setup.
+#
+#   docker compose -f infrastructure/docker-compose.yml up -d
+#
+# Postgres is published on 5434 so it can coexist with PostgreSQL clusters already
+# installed on the host (Ubuntu numbers them 5432, 5433, ...); point the app at it with
+# LEASE_INTELLIGENCE_DATABASE_PORT=5434. Ollama (docs/adr/0018) is not
+# here: it needs the host GPU, so run it natively.
+name: lease-intelligence
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: postgres
+      # Password of the application role created by postgres/init (same
+      # default as config/database.yml).
+      LEASE_INTELLIGENCE_DATABASE_PASSWORD: ${LEASE_INTELLIGENCE_DATABASE_PASSWORD:-lease_intelligence_dev}
+    ports:
+      - "127.0.0.1:${LEASE_INTELLIGENCE_DATABASE_PORT:-5434}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres-data:

@@ -8,6 +8,8 @@ Rails.application.routes.draw do
       resource :session, only: %i[create destroy]
       resource :me, only: :show, controller: "me"
       resource :current_membership, only: :show
+      # Settings of the current organization: AI extraction consent (docs/adr/0018).
+      resource :organization_settings, only: %i[show update]
 
       # Portfolio (docs/domain/portfolio.md). No destroy: records are
       # archived through `status`, since leases will reference them.

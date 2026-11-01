@@ -13,6 +13,7 @@ import { PropertyListPage } from './features/portfolio/PropertyListPage'
 import { useSession } from './hooks/useSession'
 import { useTenantSelection } from './hooks/useTenantSelection'
 import { LoginPage } from './pages/LoginPage'
+import { OrganizationSettingsPage } from './features/organization/OrganizationSettingsPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { OrganizationSelectPage } from './pages/OrganizationSelectPage'
 import { WorkspaceLayout } from './pages/WorkspaceLayout'
@@ -50,7 +51,12 @@ export default function App() {
     case 'error':
       return (
         <div className="auth-layout">
-          <StatusMessage kind="error" title="Não foi possível conectar." description={session.state.message} onRetry={session.retry} />
+          <StatusMessage
+            kind="error"
+            title="Não foi possível conectar."
+            description={session.state.message}
+            onRetry={session.retry}
+          />
         </div>
       )
     case 'signedOut':
@@ -69,6 +75,7 @@ export default function App() {
                 current={tenant.current}
                 onSwitchOrganization={handleSwitchOrganization}
                 onRetry={tenant.retry}
+                onRefresh={tenant.refresh}
                 onSignOut={handleSignOut}
               />
             }
@@ -86,6 +93,7 @@ export default function App() {
             <Route path="counterparties/new" element={<CounterpartyFormPage />} />
             <Route path="counterparties/:id" element={<CounterpartyDetailPage />} />
             <Route path="counterparties/:id/edit" element={<CounterpartyFormPage />} />
+            <Route path="settings" element={<OrganizationSettingsPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Routes>

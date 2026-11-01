@@ -19,6 +19,8 @@ module Llm
     MAX_TOKENS = 32_000
     TIMEOUT = 900 # seconds, per attempt
     MAX_RETRIES = 2
+    # Well inside the 1M-token context; ExtractFields refuses longer text.
+    MAX_INPUT_CHARACTERS = 1_500_000
     FALLBACK_BETA = :"server-side-fallback-2026-07-01"
 
     UNAVAILABLE_TYPES = %i[overloaded_error api_error].freeze
@@ -30,6 +32,8 @@ module Llm
     def name = NAME
     def model = MODEL
     def effort = EFFORT
+    def external? = true
+    def max_input_characters = MAX_INPUT_CHARACTERS
 
     def extract(instructions:, document:, schema:)
       started = Process.clock_gettime(Process::CLOCK_MONOTONIC)

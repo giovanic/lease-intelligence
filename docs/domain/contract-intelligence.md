@@ -70,9 +70,11 @@ without changing `ExtractionRun`/`ExtractedField` domain logic.
   pending/running run per version; stuck runs close as `abandoned` after
   an hour. Expected provider failures are recorded with an `error_code`
   (`ExtractionRun::ERROR_CODES`), not retried.
-- Off unless `ANTHROPIC_API_KEY` (env or credentials `anthropic.api_key`)
-  is set: then no run is requested automatically and the manual request
-  answers 503.
+- Needs a provider for the deployment (`LLM_PROVIDER=ollama` — local,
+  free — or `anthropic` with its key; none: the manual request answers
+  503) **and** the organization's consent (`tenants.ai_extraction_enabled`,
+  off by default; off: nothing is requested and the manual request answers
+  422 `extraction_disabled`; a queued run fails `ai_disabled`) — ADR-0018.
 - API: `POST /api/v1/document_versions/:id/extraction_runs`
   (owner/admin/manager), `GET /api/v1/extraction_runs/:id` (any active
   member), `extraction_run` summary on the version JSON — contract on
