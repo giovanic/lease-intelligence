@@ -13,5 +13,8 @@ Rails.application.config.filter_parameters += [
   # Extracted contract text (document_text_pages.text, docs/adr/0016): masked
   # in SQL bind logs and in #inspect. Exact name — a partial :text would
   # also hide unrelated keys like "context".
-  /\Atext\z/
+  /\Atext\z/,
+  # AI-extracted candidates (extracted_fields.value_text: party names, clause
+  # summaries — docs/adr/0017); value_tax_id is already covered by :tax_id.
+  /\Avalue_text\z/
 ]

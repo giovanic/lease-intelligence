@@ -3,8 +3,9 @@ require "pundit/rspec"
 
 # Policy layer of the three-layer tenant isolation test for documents.
 # Any active member reads; owners/admins/managers upload and request text
-# extractions; nobody updates or destroys (versions are immutable,
-# docs/adr/0010; extractions change only through the pipeline, docs/adr/0016).
+# extractions and AI field extraction runs; nobody updates or destroys
+# (versions are immutable, docs/adr/0010; extractions and runs change only
+# through the pipeline, docs/adr/0016, docs/adr/0017).
 RSpec.describe "Document policies" do
   let(:tenant) { create(:tenant) }
   let(:other_tenant) { create(:tenant) }
@@ -17,10 +18,15 @@ RSpec.describe "Document policies" do
   let!(:other_extraction) do
     with_tenant(other_tenant) { create(:document_text_extraction, document_version: other_version) }
   end
-  let(:records) { { ContractDocumentPolicy => document, DocumentVersionPolicy => version, DocumentTextExtractionPolicy => extraction } }
+  let!(:run) { with_tenant(tenant) { create(:extraction_run, text_extraction: extraction) } }
+  let!(:other_run) { with_tenant(other_tenant) { create(:extraction_run, text_extraction: other_extraction) } }
+  let(:records) do
+    { ContractDocumentPolicy => document, DocumentVersionPolicy => version, DocumentTextExtractionPolicy => extraction,
+      ExtractionRunPolicy => run }
+  end
   let(:other_tenant_records) do
     { ContractDocumentPolicy => other_document, DocumentVersionPolicy => other_version,
-      DocumentTextExtractionPolicy => other_extraction }
+      DocumentTextExtractionPolicy => other_extraction, ExtractionRunPolicy => other_run }
   end
 
   def context_for(role, status: "active")
@@ -32,7 +38,10 @@ RSpec.describe "Document policies" do
     ContractDocumentPolicy => { read: %i[index? show?], write: %i[create?], never: %i[update? destroy?] },
     DocumentVersionPolicy => { read: %i[show?], write: %i[create?], never: %i[update? destroy?] },
     # Status is read through the version; the extraction itself has no read action yet.
-    DocumentTextExtractionPolicy => { read: [], write: %i[create?], never: %i[index? show? update? destroy?] }
+    DocumentTextExtractionPolicy => { read: [], write: %i[create?], never: %i[index? show? update? destroy?] },
+    # Reading a run (fields + quoted evidence) is open to the same members
+    # who can download the file; requesting one costs a provider call.
+    ExtractionRunPolicy => { read: %i[show?], write: %i[create?], never: %i[index? update? destroy?] }
   }.each do |policy, actions|
     describe policy do
       let(:record) { records.fetch(policy) }

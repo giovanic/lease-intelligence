@@ -39,6 +39,19 @@ RSpec.describe "Sign-in throttling (Rack::Attack)", type: :request do
     expect(response).to have_http_status(:unauthorized)
   end
 
+  it "throttles manual reprocessing (text and AI field extraction) per IP" do
+    version_path = "/api/v1/document_versions/#{SecureRandom.uuid}"
+    5.times { post "#{version_path}/text_extractions", headers: { "REMOTE_ADDR" => "10.0.2.1" } }
+    5.times { post "#{version_path}/extraction_runs", headers: { "REMOTE_ADDR" => "10.0.2.1" } }
+    expect(response).to have_http_status(:unauthorized)
+
+    post "#{version_path}/extraction_runs", headers: { "REMOTE_ADDR" => "10.0.2.1" }
+    expect(response).to have_http_status(:too_many_requests)
+
+    post "#{version_path}/extraction_runs", headers: { "REMOTE_ADDR" => "10.0.2.2" }
+    expect(response).to have_http_status(:unauthorized)
+  end
+
   it "throttles repeated attempts from the same IP across different emails" do
     10.times { |i| attempt("user#{i}@example.com") }
     expect(response).to have_http_status(:unauthorized)

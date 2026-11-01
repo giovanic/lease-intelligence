@@ -169,7 +169,89 @@ export interface DocumentVersion {
   uploaded_by: Pick<User, 'id' | 'full_name'>
   /** The latest text extraction attempt, or null for a version never processed (docs/adr/0016). */
   text_extraction: TextExtraction | null
+  /** The latest AI field extraction run, or null when none was requested (docs/adr/0017). */
+  extraction_run: ExtractionRun | null
   created_at: string
+}
+
+// AI field extraction — ExtractionRunSerializer / ExtractedFieldSerializer (docs/adr/0017)
+
+export type ExtractionRunStatus = 'pending' | 'running' | 'succeeded' | 'failed'
+
+export type ExtractionRunErrorCode =
+  | 'rate_limited'
+  | 'provider_unavailable'
+  | 'timeout'
+  | 'output_truncated'
+  | 'refused'
+  | 'invalid_output'
+  | 'text_too_long'
+  | 'abandoned'
+  | 'internal_error'
+
+/** One AI field extraction over a version's text. Its fields are unreviewed candidates, never facts. */
+export interface ExtractionRun {
+  id: string
+  document_version_id: string
+  status: ExtractionRunStatus
+  field_count: number | null
+  /** Candidates dropped for an invalid value or no evidence found in the text. */
+  rejected_field_count: number | null
+  error_code: ExtractionRunErrorCode | null
+  started_at: string | null
+  finished_at: string | null
+  created_at: string
+}
+
+export type ExtractedFieldKey =
+  | 'signature_date'
+  | 'effective_date'
+  | 'commencement_date'
+  | 'expiration_date'
+  | 'term_months'
+  | 'monthly_rent'
+  | 'rent_due_day'
+  | 'readjustment_index'
+  | 'readjustment_frequency_months'
+  | 'guarantee_type'
+  | 'security_deposit_amount'
+  | 'termination_notice_days'
+  | 'renewal_terms'
+  | 'early_termination_penalty'
+  | 'lessor'
+  | 'lessee'
+  | 'guarantor'
+
+/** Where a value was read: the quoted span of a page of the extracted text. */
+export interface Evidence {
+  id: string
+  page_number: number
+  /** Whether the page's text came from the PDF itself or from OCR. */
+  source: 'native' | 'ocr'
+  start_offset: number
+  end_offset: number
+  snippet: string
+}
+
+interface ExtractedFieldBase {
+  id: string
+  key: ExtractedFieldKey
+  evidence: Evidence[]
+}
+
+/** A candidate value; `value`'s shape follows `value_type`. Money is a decimal string, never a number. */
+export type ExtractedField = ExtractedFieldBase &
+  (
+    | { value_type: 'date'; value: { date: string } }
+    | { value_type: 'integer'; value: { integer: number } }
+    | { value_type: 'money'; value: { amount: string; currency: string } }
+    | { value_type: 'option'; value: { option: string } }
+    | { value_type: 'text'; value: { text: string } }
+    | { value_type: 'party'; value: { name: string; tax_id: string | null } }
+  )
+
+export interface ExtractionRunDetail extends ExtractionRun {
+  fields: ExtractedField[]
 }
 
 export type TextExtractionStatus = 'pending' | 'running' | 'succeeded' | 'failed'

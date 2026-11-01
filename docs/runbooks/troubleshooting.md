@@ -28,6 +28,14 @@ missing or stale tenant context is the most likely cause, not a bug in
 the policy. Do not respond to this by disabling RLS — see root
 `CLAUDE.md` §4 and ADR-0003.
 
+## `db:test:prepare` fails with `unrecognized configuration parameter "transaction_timeout"`
+
+`db/structure.sql` was dumped by `pg_dump` 17 (Ubuntu's `pg_wrapper`
+picks the newest installed client) while the server — and CI's
+`postgres:16` — is 16. Re-dump with the 16 client instead of editing the
+file: `PATH=/usr/lib/postgresql/16/bin:$PATH bin/rails db:schema:dump`
+(also prefix `db:migrate`/`db:rollback`, which dump on success).
+
 ## "Test database schema doesn't match"
 
 Standard Rails symptom of pending migrations — run

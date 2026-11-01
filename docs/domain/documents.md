@@ -6,7 +6,9 @@ access, API + the "Documentos" section of the lease screen. Storage and
 access design: `docs/adr/0015-document-file-storage-and-access.md`.
 Every version gets its text extracted (per page, native PDF text or OCR)
 right after upload — see `docs/adr/0016-document-text-extraction.md` and
-"Text extraction" below. Not built yet: AI extraction (`ExtractionRun`),
+"Text extraction" below. Once the text succeeds, an AI field extraction
+run reads it (`ExtractionRun`, docs/domain/contract-intelligence.md,
+docs/adr/0017) when an LLM provider is configured. Not built yet:
 deletion.
 
 ## Entities
@@ -33,7 +35,7 @@ is the only reference to the stored bytes (ADR-0015).
 Lease 1---* ContractDocument
 ContractDocument 1---* DocumentVersion
 DocumentVersion 1---* DocumentTextExtraction 1---* DocumentTextPage
-DocumentVersion 1---* ExtractionRun      (planned)
+DocumentVersion 1---* ExtractionRun *---1 DocumentTextExtraction   (docs/adr/0017)
 ```
 
 ## Rules (and where they are enforced)
@@ -57,8 +59,9 @@ DocumentVersion 1---* ExtractionRun      (planned)
 - Reading is open to any active member; uploading (new document or
   version) to owner/admin/manager (`ContractDocumentPolicy`,
   `DocumentVersionPolicy`).
-- A `DocumentVersion` is the unit an `ExtractionRun` will operate on, so
-  extraction results stay traceable to the exact bytes that produced them.
+- A `DocumentVersion` is the unit an `ExtractionRun` operates on, through
+  the exact `DocumentTextExtraction` it read, so extraction results stay
+  traceable to the bytes and the text that produced them.
 
 ## Text extraction (docs/adr/0016)
 
@@ -80,8 +83,11 @@ DocumentVersion 1---* ExtractionRun      (planned)
   `StartExtraction` / `ExtractPages` (outside any transaction) /
   `RecordOutcome`. A PDF page with fewer than 20 non-blank characters goes
   to OCR; images always do. Limits: 300 pages, OCR timeouts per page.
-- The text is not exposed by the API in this phase; the version JSON only
-  carries `text_extraction` (status + counts). Requesting a new attempt:
+- The full text is not exposed by the API; the version JSON only carries
+  `text_extraction` (status + counts) and `extraction_run` (the latest AI
+  field extraction, summary). The only text the API returns is the quoted
+  evidence snippets of AI candidates (`GET /api/v1/extraction_runs/:id`,
+  docs/adr/0017), readable by the same members who can download the file. Requesting a new attempt:
   `POST /api/v1/document_versions/:id/text_extractions` (owner/admin/
   manager; 409 while one is pending/running, unless it is stuck for over an
   hour — then it is closed as `abandoned`).

@@ -143,6 +143,31 @@ RSpec.describe "Row-Level Security", type: :model do
       update_set: "text = 'hijacked'",
       # Pages are immutable: the trigger rejects the move as well.
       move_error: /row-level security|document_text_pages rows are immutable/
+    },
+    "extraction_runs" => {
+      factory: :extraction_run,
+      create: ->(tenant) { create(:extraction_run, text_extraction: create(:document_text_extraction, document_version: create_version(tenant))) },
+      insert_columns: "tenant_id, document_version_id, text_extraction_id, status, provider, model, prompt_version, " \
+        "effort, created_at, updated_at",
+      insert_values: "gen_random_uuid(), gen_random_uuid(), 'pending', 'anthropic', 'm', 'v1', 'high', now(), now()",
+      update_set: "status = 'running'"
+    },
+    "extracted_fields" => {
+      factory: :extracted_field,
+      create: ->(tenant) { create(:extracted_field, extraction_run: create(:extraction_run, text_extraction: create(:document_text_extraction, document_version: create_version(tenant)))) },
+      insert_columns: "tenant_id, extraction_run_id, position, field_key, value_type, value_integer, created_at",
+      insert_values: "gen_random_uuid(), 0, 'term_months', 'integer', 12, now()",
+      update_set: "value_integer = 99",
+      # AI output is immutable: the trigger rejects the move as well.
+      move_error: /row-level security|extracted_fields rows are immutable/
+    },
+    "evidence_references" => {
+      factory: :evidence_reference,
+      create: ->(tenant) { create(:evidence_reference, extracted_field: create(:extracted_field, extraction_run: create(:extraction_run, text_extraction: create(:document_text_extraction, document_version: create_version(tenant))))) },
+      insert_columns: "tenant_id, extracted_field_id, text_page_id, page_number, start_offset, end_offset, created_at",
+      insert_values: "gen_random_uuid(), gen_random_uuid(), 1, 0, 5, now()",
+      update_set: "start_offset = 1",
+      move_error: /row-level security|evidence_references rows are immutable/
     }
   }.each do |table, config|
     describe "#{table} (raw SQL)" do

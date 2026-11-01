@@ -15,6 +15,9 @@ class DocumentVersion < ApplicationRecord
     inverse_of: :document_version
   # The attempt the API reports (docs/adr/0016); preloadable for lists.
   has_one :latest_text_extraction, -> { order(created_at: :desc, id: :desc) }, class_name: "DocumentTextExtraction"
+  has_many :extraction_runs, -> { order(:created_at, :id) }, inverse_of: :document_version
+  # The AI field extraction run the API reports (docs/adr/0017); preloadable for lists.
+  has_one :latest_extraction_run, -> { order(created_at: :desc, id: :desc) }, class_name: "ExtractionRun"
 
   validates :version_number, numericality: { only_integer: true, greater_than_or_equal_to: 1 }
   validates :storage_key, :original_filename, :sha256, presence: true

@@ -34,7 +34,10 @@ apps/api/   Rails 8 API-only app (Ruby 3.3.13). Identity & Tenancy
             (contract_documents + immutable document_versions, upload,
             5-minute download links — ADR-0015) and text extraction
             (native PDF text + local Tesseract OCR per page, Sidekiq job,
-            ADR-0016). No AI extraction or conditions yet.
+            ADR-0016) and AI field extraction (Claude via the Llm
+            interface, evidence verified against the stored text,
+            unreviewed candidates only — ADR-0017). No review or
+            conditions yet.
 apps/web/   Vite + React 19 + TypeScript SPA. Login -> organization
             picker -> routed workspace (React Router, ADR-0014) with
             properties, counterparties and leases screens; services/
@@ -87,9 +90,12 @@ build on top of them silently; surface them when relevant:
    and the lease registration (`leases`, `lease_parties` —
    `docs/domain/leases.md`; no amendments/conditions yet), Document
    Management (`contract_documents`, `document_versions` —
-   `docs/domain/documents.md`, ADR-0015) and text extraction
-   (`document_text_extractions`, `document_text_pages` — ADR-0016).
-   Every other module (Contract Intelligence, Obligations, Audit &
+   `docs/domain/documents.md`, ADR-0015), text extraction
+   (`document_text_extractions`, `document_text_pages` — ADR-0016) and AI
+   field extraction (`extraction_runs`, `extracted_fields`,
+   `evidence_references` — `docs/domain/contract-intelligence.md`,
+   ADR-0017).
+   Every other module (Contract Review, Obligations, Audit &
    Security) is still
    unimplemented and must repeat the RLS checklist in
    `docs/runbooks/database.md` independently — nothing is automatic. Note

@@ -5,7 +5,8 @@
 # Three steps, so no transaction stays open while OCR runs:
 # 1. within_tenant: mark the attempt running (StartExtraction);
 # 2. outside any transaction: download + native text + OCR (ExtractPages);
-# 3. within_tenant: store pages + outcome (RecordOutcome).
+# 3. within_tenant: store pages + outcome (RecordOutcome);
+# 4. on success, within_tenant: queue the AI field extraction (docs/adr/0017).
 # A finished attempt makes the job a no-op, so a duplicate delivery or a
 # retry never stores the pages twice.
 #
@@ -38,7 +39,8 @@ class ExtractDocumentTextJob < ApplicationJob
     source = started.value
     result = DocumentText::ExtractPages.call(storage_key: source.storage_key, content_type: source.content_type,
       ocr: Ocr.provider)
-    within_tenant(tenant_id) { DocumentText::RecordOutcome.call(extraction_id: extraction_id, result: result) }
+    recorded = within_tenant(tenant_id) { DocumentText::RecordOutcome.call(extraction_id: extraction_id, result: result) }
+    request_field_extraction(tenant_id, recorded.value) if recorded.success? && recorded.value.succeeded?
   end
 
   # Called once the retries are exhausted. Re-raises when the outcome cannot
@@ -49,6 +51,18 @@ class ExtractDocumentTextJob < ApplicationJob
     tenant_id, extraction_id = arguments
     within_tenant(tenant_id) do
       DocumentText::RecordOutcome.call(extraction_id: extraction_id, result: ServiceResult.failure("internal_error"))
+    end
+  end
+
+  private
+
+  # Step 4 (docs/adr/0017): queue the AI field extraction over the text just
+  # stored, in its own transaction — the pages are already committed, so a
+  # failure here never loses them. Skipped when no LLM provider is
+  # configured (FieldExtraction::RequestRun answers "unavailable").
+  def request_field_extraction(tenant_id, extraction)
+    within_tenant(tenant_id) do
+      FieldExtraction::RequestRun.call(version: extraction.document_version, text_extraction: extraction)
     end
   end
 end

@@ -30,7 +30,11 @@ Rails.application.routes.draw do
         resource :download_link, only: :create, controller: "document_download_links"
         # Text extraction (docs/adr/0016): request a new attempt.
         resources :text_extractions, only: :create, controller: "document_text_extractions"
+        # AI field extraction (docs/adr/0017): request a new run.
+        resources :extraction_runs, only: :create
       end
+      # A run with its candidate fields and evidence (docs/adr/0017).
+      resources :extraction_runs, only: :show
       get "document_files/:token", to: "document_files#show", as: :document_file,
         constraints: { token: %r{[^/]+} }, format: false
     end

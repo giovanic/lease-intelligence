@@ -51,5 +51,10 @@ calibrated probability for auto-approval (root `CLAUDE.md` §14).
 
 ## Implementation status
 
-**Decided, not implemented.** No LLM integration, provider interface, or
-schema validation exists in the codebase yet.
+**Implemented** by ADR-0017: the `Llm` module (`app/services/llm.rb`) is
+the interface — `extract(instructions:, document:, schema:)` returning
+`Llm::Result` or a typed `Llm::*Error` — with one adapter,
+`Llm::AnthropicProvider` (Claude through the `anthropic` gem, structured
+outputs). Schema/evidence validation is `FieldExtraction::ValidateOutput`,
+outside the adapter, so it holds for any vendor. Provider, model, model
+version, prompt version and effort are recorded on every `ExtractionRun`.

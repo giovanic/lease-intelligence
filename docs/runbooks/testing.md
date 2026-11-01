@@ -33,6 +33,14 @@ in-memory PDF builder (`spec/support/document_text_helpers.rb`). Only
 instead of skipping when `CI` is set; locally it is skipped, with the
 reason, if they are missing (see `docs/runbooks/development.md`).
 
+AI field extraction specs (ADR-0017) never reach Anthropic: every example
+starts with `Llm.provider` stubbed to `nil` (even if `ANTHROPIC_API_KEY`
+is set on the machine), and specs that need a provider pass
+`FieldExtractionHelpers::FakeLlm` (`spec/support/field_extraction_helpers.rb`).
+`spec/services/llm/anthropic_provider_spec.rb` checks the adapter's
+request shape and error mapping against a stand-in client, with no
+network.
+
 ## Frontend commands (verified present in apps/web/package.json)
 
 ```
