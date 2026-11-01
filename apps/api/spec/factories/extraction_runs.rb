@@ -35,4 +35,15 @@ FactoryBot.define do
     end_offset { 5 }
     created_at { Time.current }
   end
+
+  # An approval of the field's value, written directly (normally
+  # ContractReview::RecordDecision).
+  factory :review_decision do
+    extracted_field
+    tenant { extracted_field.tenant }
+    value_type { extracted_field.value_type }
+    decision { "approved" }
+    reviewed_by factory: :user
+    created_at { Time.current }
+  end
 end

@@ -85,6 +85,12 @@ the raw AI output stays immutable for audit and model-evaluation purposes.
 An edit-then-approve produces a distinct "approved value" tied to the
 decision, which is what feeds into contractual facts.
 
+Implemented as described in ADR-0019: `review_decisions` (append-only,
+`approved` / `corrected` / `rejected`), reviewers = owner, admin, manager,
+analyst, and the review screen with the file in the browser's own viewer
+next to the fields and the cited page text with the evidence highlighted.
+`ContractualCondition` is not built, so no decision feeds anything yet.
+
 ## Contractual fact approval
 
 Only an approved `ReviewDecision` can promote a value into the lease's

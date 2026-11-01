@@ -15,6 +15,7 @@ import { useTenantSelection } from './hooks/useTenantSelection'
 import { LoginPage } from './pages/LoginPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { OrganizationSelectPage } from './pages/OrganizationSelectPage'
+import { ReviewPage } from './features/review/ReviewPage'
 import { WorkspaceLayout } from './pages/WorkspaceLayout'
 
 // Session and organization gate in front of the router (docs/adr/0014):
@@ -50,7 +51,12 @@ export default function App() {
     case 'error':
       return (
         <div className="auth-layout">
-          <StatusMessage kind="error" title="Não foi possível conectar." description={session.state.message} onRetry={session.retry} />
+          <StatusMessage
+            kind="error"
+            title="Não foi possível conectar."
+            description={session.state.message}
+            onRetry={session.retry}
+          />
         </div>
       )
     case 'signedOut':
@@ -78,6 +84,7 @@ export default function App() {
             <Route path="leases/new" element={<LeaseFormPage />} />
             <Route path="leases/:id" element={<LeaseDetailPage />} />
             <Route path="leases/:id/edit" element={<LeaseFormPage />} />
+            <Route path="leases/:leaseId/extraction-runs/:runId/review" element={<ReviewPage />} />
             <Route path="properties" element={<PropertyListPage />} />
             <Route path="properties/new" element={<PropertyFormPage />} />
             <Route path="properties/:id" element={<PropertyDetailPage />} />
