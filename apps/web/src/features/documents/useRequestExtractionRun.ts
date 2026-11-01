@@ -24,6 +24,8 @@ export function useRequestExtractionRun(onRequested: () => void) {
         if (err instanceof ApiError && err.code === 'extraction_in_progress') {
           // Already queued (by the text extraction or someone else): just show it.
           onRequested()
+        } else if (err instanceof ApiError && err.code === 'extraction_disabled') {
+          setError('A extração por IA está desligada nesta organização (Configurações).')
         } else if (err instanceof ApiError && err.code === 'extraction_unavailable') {
           setError('A extração de campos por IA não está configurada neste ambiente.')
         } else {

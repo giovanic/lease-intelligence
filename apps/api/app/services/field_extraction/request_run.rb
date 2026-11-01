@@ -12,12 +12,17 @@ module FieldExtraction
   # ExtractionRun::ABANDONED_AFTER (worker crash) — then it is closed as
   # failed/abandoned and a new one starts.
   #
-  # success(ExtractionRun) | failure("unavailable" | "text_not_ready" | "in_progress")
+  # Nothing is requested when no provider is configured ("unavailable") or
+  # when the organization has not consented to AI extraction ("disabled",
+  # Tenant#ai_extraction_enabled, docs/adr/0018).
+  #
+  # success(ExtractionRun) | failure("unavailable" | "disabled" | "text_not_ready" | "in_progress")
   class RequestRun
     ACTIVE_INDEX = "idx_extraction_runs_one_active_per_version".freeze
 
     def self.call(version:, text_extraction: nil, requested_by: nil, provider: Llm.provider)
       return ServiceResult.failure("unavailable") if provider.nil?
+      return ServiceResult.failure("disabled") unless version.tenant.ai_extraction_enabled?
 
       text_extraction ||= version.text_extractions.succeeded.last
       return ServiceResult.failure("text_not_ready") unless text_extraction&.succeeded?

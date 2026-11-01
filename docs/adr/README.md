@@ -19,7 +19,7 @@ field, and verify against the actual code before relying on it.
 | [0006](0006-background-processing-sidekiq.md) | Background processing (Sidekiq) | Accepted — implemented |
 | [0007](0007-private-object-storage.md) | Private object storage | Decided, partially implemented |
 | [0008](0008-ocr-provider-abstraction.md) | OCR provider abstraction | Implemented (Tesseract adapter, ADR-0016) |
-| [0009](0009-llm-provider-abstraction.md) | LLM provider abstraction | Implemented (Anthropic adapter, ADR-0017) |
+| [0009](0009-llm-provider-abstraction.md) | LLM provider abstraction | Implemented (Anthropic + Ollama adapters, ADR-0017/0018) |
 | [0010](0010-document-contract-versioning.md) | Document and contract versioning | Decided, partially implemented (documents) |
 | [0011](0011-evidence-first-architecture.md) | Evidence-first data architecture | Implemented (ADR-0017; review not built) |
 | [0012](0012-human-in-the-loop-review.md) | Human-in-the-loop review | Partially implemented (ADR-0019) |
@@ -28,6 +28,7 @@ field, and verify against the actual code before relying on it.
 | [0015](0015-document-file-storage-and-access.md) | Document file storage and access | Implemented |
 | [0016](0016-document-text-extraction.md) | Document text extraction (native PDF text + Tesseract OCR) | Implemented |
 | [0017](0017-contract-field-extraction-claude.md) | Contract field extraction with the Claude API | Implemented |
+| [0018](0018-local-llm-and-tenant-ai-consent.md) | Local LLM (Ollama) and per-organization AI consent | Implemented |
 | [0019](0019-review-decisions.md) | Review decisions and the review screen | Implemented |
 
 ## How to propose a new ADR

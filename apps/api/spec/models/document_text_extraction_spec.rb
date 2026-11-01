@@ -63,6 +63,13 @@ RSpec.describe DocumentTextExtraction, type: :model do
         .to raise_error(ActiveRecord::StatementInvalid, /document_text_extractions_succeeded_counts/)
     end
 
+    it "rejects a success with a missing count (NULL must not pass the check)" do
+      attributes = { status: "succeeded", page_count: 1, native_page_count: 1, ocr_page_count: nil, finished_at: Time.current }
+
+      expect { with_tenant(tenant) { build_extraction(**attributes).save!(validate: false) } }
+        .to raise_error(ActiveRecord::StatementInvalid, /document_text_extractions_succeeded_counts/)
+    end
+
     it "rejects an extraction of another tenant's version" do
       expect {
         with_tenant(tenant) do

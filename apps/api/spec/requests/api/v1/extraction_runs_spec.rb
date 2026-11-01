@@ -6,8 +6,9 @@ require "rails_helper"
 # version JSON.
 RSpec.describe "/api/v1/extraction_runs", type: :request do
   let(:user) { create(:user) }
-  let(:tenant_a) { create(:tenant) }
-  let(:tenant_b) { create(:tenant) }
+  # Both organizations consented to AI extraction (docs/adr/0018); the default is off.
+  let(:tenant_a) { create(:tenant, ai_extraction_enabled: true) }
+  let(:tenant_b) { create(:tenant, ai_extraction_enabled: true) }
   let(:role) { "manager" }
   let!(:membership) { with_tenant(tenant_a) { create(:membership, tenant: tenant_a, user: user, role: role) } }
   let(:headers) { { "X-Tenant-Id" => tenant_a.id } }

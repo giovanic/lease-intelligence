@@ -23,7 +23,7 @@ module FieldExtraction
 
     # `pages`: [StartRun::Page].
     def self.call(pages:, provider:)
-      return ServiceResult.failure("text_too_long") if pages.sum { |page| page.text.length } > ExtractionRun::MAX_INPUT_CHARACTERS
+      return ServiceResult.failure("text_too_long") if pages.sum { |page| page.text.length } > provider.max_input_characters
 
       result = provider.extract(instructions: Prompt::INSTRUCTIONS, document: Prompt.document(pages),
         schema: Catalog.schema)

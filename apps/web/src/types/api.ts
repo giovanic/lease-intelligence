@@ -13,6 +13,8 @@ export interface TenantSummary {
   id: string
   name: string
   slug: string
+  /** Whether the organization turned AI field extraction on (docs/adr/0018). */
+  ai_extraction_enabled: boolean
 }
 
 export interface Membership {
@@ -186,6 +188,7 @@ export type ExtractionRunErrorCode =
   | 'refused'
   | 'invalid_output'
   | 'text_too_long'
+  | 'ai_disabled'
   | 'abandoned'
   | 'internal_error'
 
@@ -344,4 +347,14 @@ export interface ContractDocumentInput {
 export interface DownloadLink {
   url: string
   expires_at: string
+}
+
+// Organization settings — OrganizationSettingsSerializer (docs/adr/0018)
+
+export interface OrganizationSettings {
+  ai_extraction_enabled: boolean
+  ai_extraction_changed_at: string | null
+  ai_extraction_changed_by: Pick<User, 'id' | 'full_name'> | null
+  /** The deployment's configured AI, or null when none; `external` = contracts leave our infrastructure. */
+  ai_provider: { name: string; model: string; external: boolean } | null
 }

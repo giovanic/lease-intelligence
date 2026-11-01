@@ -53,8 +53,9 @@ calibrated probability for auto-approval (root `CLAUDE.md` §14).
 
 **Implemented** by ADR-0017: the `Llm` module (`app/services/llm.rb`) is
 the interface — `extract(instructions:, document:, schema:)` returning
-`Llm::Result` or a typed `Llm::*Error` — with one adapter,
+`Llm::Result` or a typed `Llm::*Error` — with two adapters:
 `Llm::AnthropicProvider` (Claude through the `anthropic` gem, structured
-outputs). Schema/evidence validation is `FieldExtraction::ValidateOutput`,
+outputs) and `Llm::OllamaProvider` (a local open-weight model, ADR-0018),
+chosen per deployment by `LLM_PROVIDER`. Schema/evidence validation is `FieldExtraction::ValidateOutput`,
 outside the adapter, so it holds for any vendor. Provider, model, model
 version, prompt version and effort are recorded on every `ExtractionRun`.

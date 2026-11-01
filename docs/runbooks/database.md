@@ -33,9 +33,11 @@ Local Postgres setup actually in place: a dedicated role
 `CREATEDB` — see note below) owns `lease_intelligence_development` and
 `lease_intelligence_test`, connected over TCP with a password from
 `config/database.yml` (`LEASE_INTELLIGENCE_DATABASE_PASSWORD` env var,
-defaults to a local-only dev value). There is still no
-`infrastructure/docker-compose.yml` — this setup was done directly
-against the machine's existing Postgres install, not containerized.
+defaults to a local-only dev value). This setup was done directly
+against the machine's existing Postgres install; the same role can be
+had containerized with `infrastructure/docker-compose.yml` (PostgreSQL 16
+on port 5434, role created by `infrastructure/postgres/init/01-app-role.sh`,
+which fails if the role could bypass RLS).
 
 ### Schema-format gotcha (read before touching any migration with `execute`)
 

@@ -22,9 +22,10 @@ workflows anywhere else). The `api-test` job creates the
 `lease_intelligence` role with `NOSUPERUSER NOBYPASSRLS CREATEDB`, fails
 if it could bypass RLS, then loads `db/structure.sql`
 (`db:create db:schema:load`) — never run the suite as `postgres`, or RLS
-specs pass vacuously. Brakeman reads `config/brakeman.ignore`; the only
-entry is the Rails 8.0 end-of-life notice (remove it with the Rails
-upgrade). A green CI is evidence only for what the specs cover.
+specs pass vacuously. Brakeman reads `config/brakeman.ignore`, which has
+no entries (the Rails 8.0 end-of-life notice went with the Rails 8.1
+upgrade): any warning fails the gate. A green CI is evidence only for what
+the specs cover.
 
 Text extraction specs (ADR-0016) use `DocumentTextHelpers::FakeOcr` and an
 in-memory PDF builder (`spec/support/document_text_helpers.rb`). Only
@@ -39,7 +40,11 @@ is set on the machine), and specs that need a provider pass
 `FieldExtractionHelpers::FakeLlm` (`spec/support/field_extraction_helpers.rb`).
 `spec/services/llm/anthropic_provider_spec.rb` checks the adapter's
 request shape and error mapping against a stand-in client, with no
-network.
+network; `spec/services/llm/ollama_provider_spec.rb` does the same for the
+Ollama adapter and exercises its HTTP transport against throwaway local
+sockets (refused port, silent server, 404) — no Ollama needed. Specs that
+expect runs to be requested must use an organization created with
+`ai_extraction_enabled: true` (the default is off, ADR-0018).
 
 ## Frontend commands (verified present in apps/web/package.json)
 

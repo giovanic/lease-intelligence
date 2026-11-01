@@ -81,6 +81,7 @@ export const EXTRACTION_RUN_ERROR_LABELS: Record<ExtractionRunErrorCode, string>
   refused: 'a IA recusou o documento',
   invalid_output: 'resposta da IA em formato inválido',
   text_too_long: 'texto longo demais para a IA',
+  ai_disabled: 'IA desligada na organização',
   abandoned: 'processamento interrompido',
   internal_error: 'erro interno',
 }

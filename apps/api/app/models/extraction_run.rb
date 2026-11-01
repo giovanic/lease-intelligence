@@ -11,17 +11,18 @@ class ExtractionRun < ApplicationRecord
   # could echo contract content):
   # rate_limited: the provider kept answering 429 after the SDK's retries;
   # provider_unavailable: 5xx/529 or connection errors after the retries;
-  # timeout: the request took longer than Llm::AnthropicProvider::TIMEOUT;
+  # timeout: the request took longer than the provider's limit;
   # output_truncated: the answer hit max_tokens; refused: the model (and its
   # server-side fallback) declined; invalid_output: no JSON matching the
-  # schema; text_too_long: the text read is above MAX_INPUT_CHARACTERS;
+  # schema; text_too_long: the text read is longer than the provider can
+  # read whole (its max_input_characters); ai_disabled: the organization
+  # turned AI extraction off after the run was queued (docs/adr/0018);
   # abandoned: stuck pending/running past ABANDONED_AFTER (worker crash);
   # internal_error: unexpected error after the job's retries ran out.
   ERROR_CODES = %w[
-    rate_limited provider_unavailable timeout output_truncated refused invalid_output text_too_long abandoned
-    internal_error
+    rate_limited provider_unavailable timeout output_truncated refused invalid_output text_too_long ai_disabled
+    abandoned internal_error
   ].freeze
-  MAX_INPUT_CHARACTERS = 1_500_000
   ABANDONED_AFTER = 1.hour
 
   belongs_to :tenant

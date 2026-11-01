@@ -1,13 +1,4 @@
 {
-  "ignored_warnings": [
-    {
-      "warning_type": "Unmaintained Dependency",
-      "check_name": "EOLRails",
-      "message": "Support for Rails 8.0.5.1 ends on 2026-11-07",
-      "file": "Gemfile.lock",
-      "fingerprint": "98b26f60d776fd41ee6f088c833725145be9aac2d7c5b33780241c273622db42",
-      "note": "Not a code vulnerability: Rails 8.0 end-of-life notice. Tracked as a required upgrade in root CLAUDE.md §3 item 7 (also unblocks removing the json ~> 2.16 pin). Ignored only so CI gates real findings; remove this entry when upgrading Rails."
-    }
-  ],
+  "ignored_warnings": [],
   "brakeman_version": "8.1.0"
 }

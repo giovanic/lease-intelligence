@@ -24,6 +24,7 @@ module Api
     # Every field is an unreviewed AI candidate, never an approved fact.
     # Errors: 401, 403 forbidden/tenant_forbidden, 404 not_found,
     #   409 extraction_in_progress (one is already pending/running),
+    #   422 extraction_disabled (the organization has not turned AI extraction on, docs/adr/0018),
     #   422 text_not_ready (no succeeded text extraction for the version),
     #   503 extraction_unavailable (no LLM provider configured).
     class ExtractionRunsController < ApplicationController
@@ -45,6 +46,9 @@ module Api
         case result.error
         when "in_progress"
           render_error(:conflict, "extraction_in_progress", "A field extraction of this version is already in progress.")
+        when "disabled"
+          render_error(:unprocessable_content, "extraction_disabled",
+            "AI field extraction is turned off for this organization.")
         when "text_not_ready"
           render_error(:unprocessable_content, "text_not_ready", "The text of this version has not been extracted yet.")
         else

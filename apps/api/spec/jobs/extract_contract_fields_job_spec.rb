@@ -4,8 +4,9 @@ require "rails_helper"
 RSpec.describe ExtractContractFieldsJob do
   include ActiveJob::TestHelper
 
-  let(:tenant) { create(:tenant) }
-  let(:other_tenant) { create(:tenant) }
+  # Both organizations consented to AI extraction (docs/adr/0018); the default is off.
+  let(:tenant) { create(:tenant, ai_extraction_enabled: true) }
+  let(:other_tenant) { create(:tenant, ai_extraction_enabled: true) }
   let(:user) { create(:user) }
   let!(:lease) { with_tenant(tenant) { create(:lease, tenant: tenant) } }
   let(:answer) do
@@ -52,6 +53,25 @@ RSpec.describe ExtractContractFieldsJob do
     expect { version = upload_and_extract_text }.not_to have_enqueued_job(described_class)
     expect(run_of(version)).to be_nil
     expect(with_tenant(tenant) { version.latest_text_extraction }).to be_succeeded
+  end
+
+  it "is not requested while the organization has AI extraction off — the text is still stored" do
+    tenant.update!(ai_extraction_enabled: false)
+
+    version = nil
+    expect { version = upload_and_extract_text }.not_to have_enqueued_job(described_class)
+    expect(run_of(version)).to be_nil
+    expect(with_tenant(tenant) { version.latest_text_extraction }).to be_succeeded
+  end
+
+  it "does not call the provider for a run whose organization turned AI extraction off after it was queued" do
+    version = upload_and_extract_text
+    tenant.update!(ai_extraction_enabled: false)
+
+    described_class.perform_now(tenant.id, run_of(version).id)
+
+    expect(llm.requests).to be_empty
+    expect(run_of(version)).to have_attributes(status: "failed", error_code: "ai_disabled")
   end
 
   it "is not requested when the text extraction fails" do

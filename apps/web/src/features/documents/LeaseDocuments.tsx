@@ -26,7 +26,7 @@ const POLL_INTERVAL_MS = 5000
  * status, with the candidate fields on demand.
  */
 export function LeaseDocuments({ leaseId }: { leaseId: string }) {
-  const { tenantId, canEdit } = useWorkspace()
+  const { tenantId, canEdit, aiExtractionEnabled } = useWorkspace()
   const { state, retry, refresh } = useApiQuery(`lease-documents:${tenantId}:${leaseId}`, () =>
     listLeaseDocuments(tenantId, leaseId, { per_page: PER_PAGE }),
   )
@@ -107,6 +107,7 @@ export function LeaseDocuments({ leaseId }: { leaseId: string }) {
                   key={document.id}
                   document={document}
                   canEdit={canEdit}
+                  aiEnabled={aiExtractionEnabled}
                   openingId={openingId}
                   onOpen={open}
                   requestingId={requestingId}
@@ -144,6 +145,7 @@ export function LeaseDocuments({ leaseId }: { leaseId: string }) {
 interface DocumentCardProps {
   document: ContractDocument
   canEdit: boolean
+  aiEnabled: boolean
   openingId: string | null
   onOpen: (versionId: string) => void
   requestingId: string | null
@@ -161,6 +163,7 @@ interface DocumentCardProps {
 function DocumentCard({
   document,
   canEdit,
+  aiEnabled,
   openingId,
   onOpen,
   requestingId,
@@ -229,6 +232,7 @@ function DocumentCard({
                     <td className="table__status">
                       <FieldExtractionStatus
                         run={run}
+                        aiEnabled={aiEnabled}
                         textExtraction={version.text_extraction}
                         canEdit={canEdit}
                         requesting={requestingFieldsId === version.id}
