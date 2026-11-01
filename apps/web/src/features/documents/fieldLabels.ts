@@ -1,4 +1,11 @@
-import type { ExtractedField, ExtractedFieldKey, ExtractionRun, ExtractionRunErrorCode } from '../../types/api'
+import type {
+  ExtractedField,
+  ExtractedFieldKey,
+  ExtractionRun,
+  ExtractionRunErrorCode,
+  ReviewDecisionKind,
+  TypedPair,
+} from '../../types/api'
 import { formatTaxId } from '../portfolio/labels'
 
 /** Names of the AI-extracted fields (FieldExtraction::Catalog, docs/adr/0017), in catalog order. */
@@ -22,7 +29,7 @@ export const FIELD_LABELS: Record<ExtractedFieldKey, string> = {
   guarantor: 'Fiador',
 }
 
-const OPTION_LABELS: Record<string, string> = {
+export const OPTION_LABELS: Record<string, string> = {
   igp_m: 'IGP-M',
   ipca: 'IPCA',
   inpc: 'INPC',
@@ -35,6 +42,34 @@ const OPTION_LABELS: Record<string, string> = {
   capitalization_bond: 'Título de capitalização',
   investment_fund_assignment: 'Cessão de quotas de fundo de investimento',
   none: 'Sem garantia',
+}
+
+/** The codes a field of type `option` accepts (FieldExtraction::Catalog). */
+export const FIELD_OPTIONS: Partial<Record<ExtractedFieldKey, string[]>> = {
+  readjustment_index: ['igp_m', 'ipca', 'inpc', 'igp_di', 'ivar', 'other'],
+  guarantee_type: [
+    'security_deposit',
+    'personal_guarantee',
+    'surety_insurance',
+    'capitalization_bond',
+    'investment_fund_assignment',
+    'none',
+  ],
+}
+
+/** A field's current review state (docs/adr/0019). */
+export const REVIEW_LABELS: Record<ReviewDecisionKind | 'pending', string> = {
+  pending: 'Pendente',
+  approved: 'Aprovado',
+  corrected: 'Corrigido',
+  rejected: 'Rejeitado',
+}
+
+export const REVIEW_BADGES: Record<ReviewDecisionKind | 'pending', string> = {
+  pending: 'badge--neutral',
+  approved: 'badge--positive',
+  corrected: 'badge--positive',
+  rejected: 'badge--negative',
 }
 
 /** Why a field extraction failed, for the person who can retry it (docs/adr/0017). */
@@ -89,21 +124,26 @@ function formatInteger(key: ExtractedFieldKey, value: number): string {
 
 /** The candidate value as a person reads it. */
 export function formatFieldValue(field: ExtractedField): string {
-  switch (field.value_type) {
+  return formatTypedValue(field.key, field)
+}
+
+/** A typed value (the AI's or a reviewer's correction) as a person reads it. */
+export function formatTypedValue(key: ExtractedFieldKey, pair: TypedPair): string {
+  switch (pair.value_type) {
     case 'date':
-      return formatDate(field.value.date)
+      return formatDate(pair.value.date)
     case 'integer':
-      return formatInteger(field.key, field.value.integer)
+      return formatInteger(key, pair.value.integer)
     case 'money':
-      return formatMoney(field.value.amount, field.value.currency)
+      return formatMoney(pair.value.amount, pair.value.currency)
     case 'option':
-      return OPTION_LABELS[field.value.option] ?? field.value.option
+      return OPTION_LABELS[pair.value.option] ?? pair.value.option
     case 'text':
-      return field.value.text
+      return pair.value.text
     case 'party': {
-      const taxId = field.value.tax_id
-      if (!taxId) return field.value.name
-      return `${field.value.name} · ${taxId.length === 11 ? 'CPF' : 'CNPJ'} ${formatTaxId(taxId)}`
+      const taxId = pair.value.tax_id
+      if (!taxId) return pair.value.name
+      return `${pair.value.name} · ${taxId.length === 11 ? 'CPF' : 'CNPJ'} ${formatTaxId(taxId)}`
     }
   }
 }

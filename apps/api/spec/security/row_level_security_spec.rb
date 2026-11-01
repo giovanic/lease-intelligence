@@ -168,6 +168,14 @@ RSpec.describe "Row-Level Security", type: :model do
       insert_values: "gen_random_uuid(), gen_random_uuid(), 1, 0, 5, now()",
       update_set: "start_offset = 1",
       move_error: /row-level security|evidence_references rows are immutable/
+    },
+    "review_decisions" => {
+      factory: :review_decision,
+      create: ->(tenant) { create(:review_decision, extracted_field: create(:extracted_field, extraction_run: create(:extraction_run, text_extraction: create(:document_text_extraction, document_version: create_version(tenant))))) },
+      insert_columns: "tenant_id, extracted_field_id, value_type, decision, reviewed_by_id, created_at",
+      insert_values: "gen_random_uuid(), 'integer', 'approved', gen_random_uuid(), now()",
+      update_set: "decision = 'rejected'",
+      move_error: /row-level security|review_decisions rows are immutable/
     }
   }.each do |table, config|
     describe "#{table} (raw SQL)" do

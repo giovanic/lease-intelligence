@@ -36,7 +36,8 @@ apps/api/   Rails 8 API-only app (Ruby 3.3.13). Identity & Tenancy
             (native PDF text + local Tesseract OCR per page, Sidekiq job,
             ADR-0016) and AI field extraction (Claude via the Llm
             interface, evidence verified against the stored text,
-            unreviewed candidates only — ADR-0017). No review or
+            ADR-0017) and human review (approve/correct/reject each
+            value next to the document — ADR-0019). No contractual
             conditions yet.
 apps/web/   Vite + React 19 + TypeScript SPA. Login -> organization
             picker -> routed workspace (React Router, ADR-0014) with
@@ -94,7 +95,7 @@ build on top of them silently; surface them when relevant:
    (`document_text_extractions`, `document_text_pages` — ADR-0016) and AI
    field extraction (`extraction_runs`, `extracted_fields`,
    `evidence_references` — `docs/domain/contract-intelligence.md`,
-   ADR-0017).
+   ADR-0017) and review (`review_decisions` — ADR-0019).
    Every other module (Contract Review, Obligations, Audit &
    Security) is still
    unimplemented and must repeat the RLS checklist in

@@ -235,6 +235,7 @@ function DocumentCard({
                         onRequest={() => onRequestFields(version.id)}
                         showingFields={showingFields}
                         onToggleFields={() => onToggleFields(version.id)}
+                        reviewHref={run ? `/leases/${document.lease_id}/extraction-runs/${run.id}/review` : null}
                       />
                     </td>
                     <td>

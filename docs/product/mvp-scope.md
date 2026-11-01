@@ -9,8 +9,9 @@ versions, private file access) and OCR Processing (per-page text of every
 uploaded version, native PDF text or local Tesseract OCR, status + retry
 in the SPA) and AI Contract Intelligence + Evidence Management (17 lease
 fields extracted by Claude, each with a quote verified against the stored
-text, shown read-only as unreviewed candidates — ADR-0017) — API and SPA
-screens. Human Review and everything after it is planned.
+text — ADR-0017) and Human Review (approve / correct / reject each value
+next to the document, every decision attributed — ADR-0019) — API and SPA
+screens. Contractual Conditions and everything after it is planned.
 
 ## In scope for MVP
 

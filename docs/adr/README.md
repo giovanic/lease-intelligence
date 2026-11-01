@@ -22,12 +22,13 @@ field, and verify against the actual code before relying on it.
 | [0009](0009-llm-provider-abstraction.md) | LLM provider abstraction | Implemented (Anthropic adapter, ADR-0017) |
 | [0010](0010-document-contract-versioning.md) | Document and contract versioning | Decided, partially implemented (documents) |
 | [0011](0011-evidence-first-architecture.md) | Evidence-first data architecture | Implemented (ADR-0017; review not built) |
-| [0012](0012-human-in-the-loop-review.md) | Human-in-the-loop review | Decided, not implemented |
+| [0012](0012-human-in-the-loop-review.md) | Human-in-the-loop review | Partially implemented (ADR-0019) |
 | [0013](0013-spa-session-auth-and-tenant-selection.md) | SPA session-cookie auth + `X-Tenant-Id` tenant selection | Implemented (API) |
 | [0014](0014-spa-routing-react-router.md) | SPA routing with React Router (declarative mode) | Implemented |
 | [0015](0015-document-file-storage-and-access.md) | Document file storage and access | Implemented |
 | [0016](0016-document-text-extraction.md) | Document text extraction (native PDF text + Tesseract OCR) | Implemented |
 | [0017](0017-contract-field-extraction-claude.md) | Contract field extraction with the Claude API | Implemented |
+| [0019](0019-review-decisions.md) | Review decisions and the review screen | Implemented |
 
 ## How to propose a new ADR
 

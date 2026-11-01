@@ -57,6 +57,9 @@ financial/legal fact in the system without a human catching it.
 
 ## Implementation status
 
-**Decided, not implemented.** No `ReviewDecision` model, no review queue,
-and no enforcement boundary between extracted and approved data exist
-yet.
+**Partially implemented** (ADR-0019): `ReviewDecision` (approve /
+correct / reject, append-only, attributed) and the side-by-side review
+screen exist. The enforcement boundary is structural only so far by
+absence: nothing consumes extracted or reviewed values yet.
+`ContractualCondition`, which must read approved/corrected decisions
+only, is the next phase.

@@ -16,5 +16,8 @@ Rails.application.config.filter_parameters += [
   /\Atext\z/,
   # AI-extracted candidates (extracted_fields.value_text: party names, clause
   # summaries — docs/adr/0017); value_tax_id is already covered by :tax_id.
-  /\Avalue_text\z/
+  /\Avalue_text\z/,
+  # Review decisions (docs/adr/0019): a corrected value (e.g. a party's name
+  # and CPF) and the reviewer's reason are contract content / personal data.
+  /\Avalue\z/, :reason
 ]
