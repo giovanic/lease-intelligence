@@ -1,3 +1,4 @@
+import { Link } from 'react-router'
 import type { ExtractionRun, TextExtraction } from '../../types/api'
 import { EXTRACTION_RUN_ERROR_LABELS } from './fieldLabels'
 
@@ -11,6 +12,8 @@ interface FieldExtractionStatusProps {
   onRequest: () => void
   showingFields: boolean
   onToggleFields: () => void
+  /** The review screen of this run (docs/adr/0019). */
+  reviewHref: string | null
 }
 
 /**
@@ -28,6 +31,7 @@ export function FieldExtractionStatus({
   onRequest,
   showingFields,
   onToggleFields,
+  reviewHref,
 }: FieldExtractionStatusProps) {
   const action = (label: string) =>
     canEdit &&
@@ -73,6 +77,11 @@ export function FieldExtractionStatus({
             >
               {showingFields ? 'Ocultar' : 'Ver campos'}
             </button>
+          )}
+          {count > 0 && reviewHref && (
+            <Link className="button button--link" to={reviewHref}>
+              Revisar
+            </Link>
           )}
         </span>
       )

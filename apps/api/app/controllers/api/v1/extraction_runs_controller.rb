@@ -14,7 +14,11 @@ module Api
     #   rejected_field_count, error_code, started_at, finished_at, created_at }
     # fields (GET only, at most ~75 by the catalog caps, so not paginated) =
     #   [{ id, key, value_type: date|integer|money|option|text|party, value, evidence: [
-    #      { id, page_number, source: native|ocr, start_offset, end_offset, snippet }] }]
+    #      { id, page_number, source: native|ocr, start_offset, end_offset, snippet }],
+    #      review: review_decision | null (latest), review_count }]
+    # review_summary (GET only) = { approved, corrected, rejected, pending } (current state per field)
+    # document_version (GET only) = { id, contract_document_id, version_number, original_filename, content_type }
+    # review_decision: see ReviewDecisionsController.
     # value by value_type: { date: "YYYY-MM-DD" } | { integer: n } | { amount: "12000.00", currency: "BRL" }
     #   | { option: "igp_m" } | { text: "..." } | { name: "...", tax_id: "digits" | null }
     # Every field is an unreviewed AI candidate, never an approved fact.
@@ -27,7 +31,8 @@ module Api
       include TenantScoped
 
       def show
-        run = policy_scope(ExtractionRun).includes(fields: { evidence_references: :text_page }).find(params[:id])
+        run = policy_scope(ExtractionRun).includes(:document_version,
+          fields: [ { evidence_references: :text_page }, { review_decisions: :reviewed_by } ]).find(params[:id])
         authorize run
         render json: { data: ExtractionRunSerializer.new(run, with_fields: true).as_json }
       end

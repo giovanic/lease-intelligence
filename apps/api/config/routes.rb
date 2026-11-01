@@ -35,8 +35,15 @@ Rails.application.routes.draw do
         # AI field extraction (docs/adr/0017): request a new run.
         resources :extraction_runs, only: :create
       end
-      # A run with its candidate fields and evidence (docs/adr/0017).
-      resources :extraction_runs, only: :show
+      # A run with its candidate fields and evidence (docs/adr/0017), and the
+      # full text of one of its pages for the review screen (docs/adr/0019).
+      resources :extraction_runs, only: :show do
+        resources :pages, only: :show, param: :page_number, controller: "extraction_run_pages"
+      end
+      # Human review of an extracted field (docs/adr/0019); append-only.
+      resources :extracted_fields, only: [] do
+        resources :review_decisions, only: :create
+      end
       get "document_files/:token", to: "document_files#show", as: :document_file,
         constraints: { token: %r{[^/]+} }, format: false
     end

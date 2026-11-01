@@ -236,25 +236,68 @@ export interface Evidence {
   snippet: string
 }
 
+/** The shape of a typed value per value_type. Money is a decimal string, never a number. */
+export interface TypedValues {
+  date: { date: string }
+  integer: { integer: number }
+  money: { amount: string; currency: string }
+  option: { option: string }
+  text: { text: string }
+  party: { name: string; tax_id: string | null }
+}
+
+export type ValueType = keyof TypedValues
+export type TypedValue = TypedValues[ValueType]
+
+export type ReviewDecisionKind = 'approved' | 'corrected' | 'rejected'
+
+/** A human decision on an extracted field (docs/adr/0019). `value` only when corrected. */
+export interface ReviewDecision {
+  id: string
+  extracted_field_id: string
+  decision: ReviewDecisionKind
+  value: TypedValue | null
+  reason: string | null
+  reviewed_by: Pick<User, 'id' | 'full_name'>
+  created_at: string
+}
+
 interface ExtractedFieldBase {
   id: string
   key: ExtractedFieldKey
   evidence: Evidence[]
+  /** The latest decision, or null while pending review. */
+  review: ReviewDecision | null
+  review_count: number
 }
 
-/** A candidate value; `value`'s shape follows `value_type`. Money is a decimal string, never a number. */
-export type ExtractedField = ExtractedFieldBase &
-  (
-    | { value_type: 'date'; value: { date: string } }
-    | { value_type: 'integer'; value: { integer: number } }
-    | { value_type: 'money'; value: { amount: string; currency: string } }
-    | { value_type: 'option'; value: { option: string } }
-    | { value_type: 'text'; value: { text: string } }
-    | { value_type: 'party'; value: { name: string; tax_id: string | null } }
-  )
+/** A value together with its type, so `value` narrows on `value_type`. */
+export type TypedPair = { [K in ValueType]: { value_type: K; value: TypedValues[K] } }[ValueType]
+
+/** A candidate value; `value`'s shape follows `value_type`. */
+export type ExtractedField = ExtractedFieldBase & TypedPair
 
 export interface ExtractionRunDetail extends ExtractionRun {
   fields: ExtractedField[]
+  /** Current state of the fields: counts per latest decision. */
+  review_summary: Record<ReviewDecisionKind | 'pending', number>
+  document_version: Pick<
+    DocumentVersion,
+    'id' | 'contract_document_id' | 'version_number' | 'original_filename' | 'content_type'
+  >
+}
+
+export interface ReviewDecisionInput {
+  decision: ReviewDecisionKind
+  value?: TypedValue
+  reason?: string
+}
+
+/** One page of the text an extraction run read; evidence offsets point into `text`. */
+export interface DocumentTextPage {
+  page_number: number
+  source: 'native' | 'ocr'
+  text: string
 }
 
 export type TextExtractionStatus = 'pending' | 'running' | 'succeeded' | 'failed'

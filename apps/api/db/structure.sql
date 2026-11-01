@@ -87,6 +87,20 @@ END;
 $$;
 
 
+--
+-- Name: review_decisions_reject_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.review_decisions_reject_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  RAISE EXCEPTION 'review_decisions rows are immutable (% rejected)', TG_OP
+    USING ERRCODE = 'restrict_violation';
+END;
+$$;
+
+
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
@@ -431,6 +445,46 @@ ALTER TABLE ONLY public.properties FORCE ROW LEVEL SECURITY;
 
 
 --
+-- Name: review_decisions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.review_decisions (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    tenant_id uuid NOT NULL,
+    extracted_field_id uuid NOT NULL,
+    value_type character varying NOT NULL,
+    decision character varying NOT NULL,
+    value_date date,
+    value_integer integer,
+    value_amount numeric(15,2),
+    value_currency character varying,
+    value_text text,
+    value_tax_id character varying,
+    reason text,
+    reviewed_by_id uuid NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT review_decisions_decision_check CHECK (((decision)::text = ANY ((ARRAY['approved'::character varying, 'corrected'::character varying, 'rejected'::character varying])::text[]))),
+    CONSTRAINT review_decisions_reason_length CHECK (((reason IS NULL) OR ((length(reason) >= 1) AND (length(reason) <= 1000)))),
+    CONSTRAINT review_decisions_value_matches_decision CHECK (COALESCE(
+CASE
+    WHEN ((decision)::text = ANY ((ARRAY['approved'::character varying, 'rejected'::character varying])::text[])) THEN ((value_date IS NULL) AND (value_integer IS NULL) AND (value_amount IS NULL) AND (value_currency IS NULL) AND (value_text IS NULL) AND (value_tax_id IS NULL))
+    ELSE
+    CASE value_type
+        WHEN 'date'::text THEN ((value_date IS NOT NULL) AND (value_integer IS NULL) AND (value_amount IS NULL) AND (value_currency IS NULL) AND (value_text IS NULL) AND (value_tax_id IS NULL))
+        WHEN 'integer'::text THEN ((value_integer IS NOT NULL) AND (value_date IS NULL) AND (value_amount IS NULL) AND (value_currency IS NULL) AND (value_text IS NULL) AND (value_tax_id IS NULL))
+        WHEN 'money'::text THEN ((value_amount IS NOT NULL) AND (value_amount >= (0)::numeric) AND ((value_currency)::text ~ '^[A-Z]{3}$'::text) AND (value_date IS NULL) AND (value_integer IS NULL) AND (value_text IS NULL) AND (value_tax_id IS NULL))
+        WHEN 'option'::text THEN ((value_text ~ '^[a-z][a-z_]*$'::text) AND (value_date IS NULL) AND (value_integer IS NULL) AND (value_amount IS NULL) AND (value_currency IS NULL) AND (value_tax_id IS NULL))
+        WHEN 'text'::text THEN ((value_text IS NOT NULL) AND (length(value_text) > 0) AND (value_date IS NULL) AND (value_integer IS NULL) AND (value_amount IS NULL) AND (value_currency IS NULL) AND (value_tax_id IS NULL))
+        WHEN 'party'::text THEN ((value_text IS NOT NULL) AND (length(value_text) > 0) AND ((value_tax_id IS NULL) OR ((value_tax_id)::text ~ '^([0-9]{11}|[0-9]{14})$'::text)) AND (value_date IS NULL) AND (value_integer IS NULL) AND (value_amount IS NULL) AND (value_currency IS NULL))
+        ELSE false
+    END
+END, false))
+);
+
+ALTER TABLE ONLY public.review_decisions FORCE ROW LEVEL SECURITY;
+
+
+--
 -- Name: schema_migrations; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -591,6 +645,14 @@ ALTER TABLE ONLY public.memberships
 
 ALTER TABLE ONLY public.properties
     ADD CONSTRAINT properties_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: review_decisions review_decisions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.review_decisions
+    ADD CONSTRAINT review_decisions_pkey PRIMARY KEY (id);
 
 
 --
@@ -758,6 +820,13 @@ CREATE UNIQUE INDEX idx_extracted_fields_id_tenant_id ON public.extracted_fields
 
 
 --
+-- Name: idx_extracted_fields_id_value_type_tenant_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_extracted_fields_id_value_type_tenant_id ON public.extracted_fields USING btree (id, value_type, tenant_id);
+
+
+--
 -- Name: idx_extracted_fields_run_id_tenant_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -867,6 +936,20 @@ CREATE UNIQUE INDEX idx_properties_id_tenant_id ON public.properties USING btree
 --
 
 CREATE UNIQUE INDEX idx_properties_unique_code_per_tenant ON public.properties USING btree (tenant_id, code) WHERE (code IS NOT NULL);
+
+
+--
+-- Name: idx_review_decisions_field_latest; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_review_decisions_field_latest ON public.review_decisions USING btree (extracted_field_id, created_at);
+
+
+--
+-- Name: idx_review_decisions_field_type_tenant; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_review_decisions_field_type_tenant ON public.review_decisions USING btree (extracted_field_id, value_type, tenant_id);
 
 
 --
@@ -1024,6 +1107,20 @@ CREATE INDEX index_properties_on_tenant_id ON public.properties USING btree (ten
 
 
 --
+-- Name: index_review_decisions_on_reviewed_by_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_review_decisions_on_reviewed_by_id ON public.review_decisions USING btree (reviewed_by_id);
+
+
+--
+-- Name: index_review_decisions_on_tenant_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_review_decisions_on_tenant_id ON public.review_decisions USING btree (tenant_id);
+
+
+--
 -- Name: index_tenants_on_ai_extraction_changed_by_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1077,6 +1174,13 @@ CREATE TRIGGER evidence_references_immutable BEFORE DELETE OR UPDATE ON public.e
 --
 
 CREATE TRIGGER extracted_fields_immutable BEFORE DELETE OR UPDATE ON public.extracted_fields FOR EACH ROW EXECUTE FUNCTION public.extracted_fields_reject_change();
+
+
+--
+-- Name: review_decisions review_decisions_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER review_decisions_immutable BEFORE DELETE OR UPDATE ON public.review_decisions FOR EACH ROW EXECUTE FUNCTION public.review_decisions_reject_change();
 
 
 --
@@ -1173,6 +1277,14 @@ ALTER TABLE ONLY public.lease_parties
 
 ALTER TABLE ONLY public.leases
     ADD CONSTRAINT fk_leases_property_same_tenant FOREIGN KEY (property_id, tenant_id) REFERENCES public.properties(id, tenant_id);
+
+
+--
+-- Name: review_decisions fk_rails_002912607a; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.review_decisions
+    ADD CONSTRAINT fk_rails_002912607a FOREIGN KEY (reviewed_by_id) REFERENCES public.users(id);
 
 
 --
@@ -1304,6 +1416,14 @@ ALTER TABLE ONLY public.document_text_extractions
 
 
 --
+-- Name: review_decisions fk_rails_e3ab749791; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.review_decisions
+    ADD CONSTRAINT fk_rails_e3ab749791 FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
+
+
+--
 -- Name: counterparties fk_rails_f00102f981; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1325,6 +1445,14 @@ ALTER TABLE ONLY public.invitations
 
 ALTER TABLE ONLY public.evidence_references
     ADD CONSTRAINT fk_rails_fd3e0b54d4 FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
+
+
+--
+-- Name: review_decisions fk_review_decisions_field_same_type_and_tenant; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.review_decisions
+    ADD CONSTRAINT fk_review_decisions_field_same_type_and_tenant FOREIGN KEY (extracted_field_id, value_type, tenant_id) REFERENCES public.extracted_fields(id, value_type, tenant_id);
 
 
 --
@@ -1512,12 +1640,26 @@ CREATE POLICY properties_tenant_isolation ON public.properties USING ((tenant_id
 
 
 --
+-- Name: review_decisions; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.review_decisions ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: review_decisions review_decisions_tenant_isolation; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY review_decisions_tenant_isolation ON public.review_decisions USING ((tenant_id = public.app_current_tenant_id())) WITH CHECK ((tenant_id = public.app_current_tenant_id()));
+
+
+--
 -- PostgreSQL database dump complete
 --
 
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261101120000'),
 ('20261101100002'),
 ('20261101100001'),
 ('20261101100000'),

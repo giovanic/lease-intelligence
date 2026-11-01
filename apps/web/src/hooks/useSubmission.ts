@@ -5,7 +5,8 @@ import type { ValidationDetails } from '../types/api'
 /**
  * State of a form submission: `submitting`, a general error message and
  * the API's per-field 422 messages. `run` resolves to the result, or to
- * undefined when the request failed (the error is then in state).
+ * undefined when the request failed (the error is then in state). `reset`
+ * clears the messages (e.g. when the user cancels the form).
  */
 export function useSubmission() {
   const [submitting, setSubmitting] = useState(false)
@@ -33,5 +34,10 @@ export function useSubmission() {
     }
   }, [])
 
-  return { submitting, error, fieldErrors, run }
+  const reset = useCallback(() => {
+    setError(null)
+    setFieldErrors({})
+  }, [])
+
+  return { submitting, error, fieldErrors, run, reset }
 }

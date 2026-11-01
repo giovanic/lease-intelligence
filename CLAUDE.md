@@ -37,8 +37,9 @@ apps/api/   Rails 8 API-only app (Ruby 3.3.13). Identity & Tenancy
             ADR-0016) and AI field extraction (Claude or a local
             Ollama model via the Llm interface, per-organization
             consent off by default, evidence verified against the
-            stored text, unreviewed candidates only — ADR-0017/0018).
-            No review or conditions yet.
+            stored text — ADR-0017/0018) and human review
+            (approve/correct/reject each value next to the document —
+            ADR-0019). No contractual conditions yet.
 apps/web/   Vite + React 19 + TypeScript SPA. Login -> organization
             picker -> routed workspace (React Router, ADR-0014) with
             properties, counterparties and leases screens; services/
@@ -97,8 +98,8 @@ build on top of them silently; surface them when relevant:
    (`document_text_extractions`, `document_text_pages` — ADR-0016) and AI
    field extraction (`extraction_runs`, `extracted_fields`,
    `evidence_references` — `docs/domain/contract-intelligence.md`,
-   ADR-0017).
-   Every other module (Contract Review, Obligations, Audit &
+   ADR-0017) and review (`review_decisions` — ADR-0019).
+   Every other module (Contractual Conditions, Obligations, Audit &
    Security) is still
    unimplemented and must repeat the RLS checklist in
    `docs/runbooks/database.md` independently — nothing is automatic. Note

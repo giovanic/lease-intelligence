@@ -4,7 +4,7 @@ import { useApiQuery } from '../../hooks/useApiQuery'
 import { getExtractionRun } from '../../services/documents'
 import { useWorkspace } from '../../state/workspace'
 import type { ExtractedField } from '../../types/api'
-import { FIELD_LABELS, formatFieldValue } from './fieldLabels'
+import { FIELD_LABELS, formatFieldValue, REVIEW_BADGES, REVIEW_LABELS } from './fieldLabels'
 
 /**
  * The candidate fields of one AI extraction run, each with the quoted
@@ -27,7 +27,8 @@ export function ExtractedFieldsPanel({ runId }: { runId: string }) {
         {(run) => (
           <>
             <p className="extracted-fields__notice" role="note">
-              <strong>Extraído por IA, não revisado.</strong> Confira cada valor no trecho citado antes de usá-lo.
+              <strong>Extraído por IA.</strong> Só vale depois de aprovado na revisão; confira cada valor no trecho
+              citado.
               {rejectedNotice(run.rejected_field_count ?? 0)}
             </p>
             {run.fields.length === 0 ? (
@@ -57,7 +58,12 @@ function FieldRow({ field }: { field: ExtractedField }) {
     <div className="extracted-fields__item">
       <dt>{FIELD_LABELS[field.key]}</dt>
       <dd>
-        <span className="extracted-fields__value">{formatFieldValue(field)}</span>
+        <span className="extracted-fields__value">
+          {formatFieldValue(field)}{' '}
+          <span className={`badge ${REVIEW_BADGES[field.review?.decision ?? 'pending']}`}>
+            {REVIEW_LABELS[field.review?.decision ?? 'pending']}
+          </span>
+        </span>
         {field.evidence.map((evidence) => (
           <blockquote key={evidence.id} className="extracted-fields__evidence">
             <span className="muted">

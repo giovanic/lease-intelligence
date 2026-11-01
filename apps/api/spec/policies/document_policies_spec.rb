@@ -20,13 +20,16 @@ RSpec.describe "Document policies" do
   end
   let!(:run) { with_tenant(tenant) { create(:extraction_run, text_extraction: extraction) } }
   let!(:other_run) { with_tenant(other_tenant) { create(:extraction_run, text_extraction: other_extraction) } }
+  let!(:field) { with_tenant(tenant) { create(:extracted_field, extraction_run: run) } }
+  let!(:other_field) { with_tenant(other_tenant) { create(:extracted_field, extraction_run: other_run) } }
   let(:records) do
     { ContractDocumentPolicy => document, DocumentVersionPolicy => version, DocumentTextExtractionPolicy => extraction,
-      ExtractionRunPolicy => run }
+      ExtractionRunPolicy => run, ExtractedFieldPolicy => field }
   end
   let(:other_tenant_records) do
     { ContractDocumentPolicy => other_document, DocumentVersionPolicy => other_version,
-      DocumentTextExtractionPolicy => other_extraction, ExtractionRunPolicy => other_run }
+      DocumentTextExtractionPolicy => other_extraction, ExtractionRunPolicy => other_run,
+      ExtractedFieldPolicy => other_field }
   end
 
   def context_for(role, status: "active")
@@ -41,7 +44,9 @@ RSpec.describe "Document policies" do
     DocumentTextExtractionPolicy => { read: [], write: %i[create?], never: %i[index? show? update? destroy?] },
     # Reading a run (fields + quoted evidence) is open to the same members
     # who can download the file; requesting one costs a provider call.
-    ExtractionRunPolicy => { read: %i[show?], write: %i[create?], never: %i[index? update? destroy?] }
+    ExtractionRunPolicy => { read: %i[show?], write: %i[create?], never: %i[index? update? destroy?] },
+    # Fields are reached through their run or to decide on them: only the Scope.
+    ExtractedFieldPolicy => { read: [], write: [], never: %i[index? show? create? update? destroy?] }
   }.each do |policy, actions|
     describe policy do
       let(:record) { records.fetch(policy) }

@@ -83,11 +83,12 @@ DocumentVersion 1---* ExtractionRun *---1 DocumentTextExtraction   (docs/adr/001
   `StartExtraction` / `ExtractPages` (outside any transaction) /
   `RecordOutcome`. A PDF page with fewer than 20 non-blank characters goes
   to OCR; images always do. Limits: 300 pages, OCR timeouts per page.
-- The full text is not exposed by the API; the version JSON only carries
-  `text_extraction` (status + counts) and `extraction_run` (the latest AI
-  field extraction, summary). The only text the API returns is the quoted
-  evidence snippets of AI candidates (`GET /api/v1/extraction_runs/:id`,
-  docs/adr/0017), readable by the same members who can download the file. Requesting a new attempt:
+- The version JSON only carries `text_extraction` (status + counts) and
+  `extraction_run` (the latest AI field extraction, summary). Text is
+  returned only for review, to the same members who can download the
+  file: the quoted evidence snippets (`GET /api/v1/extraction_runs/:id`,
+  docs/adr/0017) and one page at a time
+  (`GET /api/v1/extraction_runs/:id/pages/:page_number`, docs/adr/0019). Requesting a new attempt:
   `POST /api/v1/document_versions/:id/text_extractions` (owner/admin/
   manager; 409 while one is pending/running, unless it is stuck for over an
   hour — then it is closed as `abandoned`).

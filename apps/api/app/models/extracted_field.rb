@@ -11,6 +11,8 @@ class ExtractedField < ApplicationRecord
   belongs_to :tenant
   belongs_to :extraction_run, inverse_of: :fields
   has_many :evidence_references, -> { order(:page_number, :start_offset) }, inverse_of: :extracted_field
+  # Human decisions, oldest first; the latest is the field's current state (docs/adr/0019).
+  has_many :review_decisions, -> { order(:created_at, :id) }, inverse_of: :extracted_field
 
   # Which value column is set: date -> value_date; integer -> value_integer;
   # money -> value_amount + value_currency; option -> value_text (an option

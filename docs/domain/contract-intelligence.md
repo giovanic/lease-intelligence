@@ -4,9 +4,11 @@ Status: **extraction and evidence implemented** (`feat/ai-contract-extraction`,
 ADR-0017): text extraction (`DocumentTextExtraction`, `DocumentTextPage`,
 ADR-0016, see `docs/domain/documents.md`), then `ExtractionRun`,
 `ExtractedField` and `EvidenceReference`, API + the "Campos (IA)" column
-of the lease's documents. `ReviewDecision` (human review) is **not built**
-— every field is an unreviewed AI candidate. See ADR-008, ADR-009,
-ADR-011, ADR-012, ADR-0016, ADR-0017.
+of the lease's documents — and **human review** (`ReviewDecision`, the
+review screen, `feat/human-review`, ADR-0019). Approved/corrected values
+are recorded but not consumed yet: `ContractualCondition` is the next
+phase. See ADR-008, ADR-009, ADR-011, ADR-012, ADR-0016, ADR-0017,
+ADR-0019.
 
 ## Entities
 
@@ -27,9 +29,14 @@ ADR-011, ADR-012, ADR-0016, ADR-0017.
   span `[start_offset, end_offset)` of the quote in that page's stored text
   (the snippet is sliced from the page when served). No bounding boxes
   (Tesseract's coordinates are not stored). Immutable once created.
-- **ReviewDecision** (planned, next phase) — a human's action on an `ExtractedField`: approve,
-  edit-then-approve (with the corrected value recorded on the decision,
-  not on the original field), or reject (with optional reason).
+- **ReviewDecision** (`review_decisions`, implemented) — a human's action
+  on an `ExtractedField`: `approved`, `corrected` (approved with the
+  reviewer's value, in the same typed columns, validated by the same
+  catalog rules — `FieldExtraction::FieldValue`) or `rejected` (optional
+  `reason`). Append-only; the field's current state is its latest
+  decision. `value_type` is pinned to the field's by a composite FK.
+  Decided by owners, admins, managers and analysts, only on the version's
+  latest succeeded run (ADR-0019).
 
 ## Relationships
 
@@ -85,5 +92,12 @@ without changing `ExtractionRun`/`ExtractedField` domain logic.
   a page of the same tenant). Three-layer tests: `ExtractionRunPolicy` in
   `spec/policies/document_policies_spec.rb`, the request spec, and the
   raw-SQL entries in `spec/security/row_level_security_spec.rb`.
-- Not built: review, per-tenant opt-in for sending content to the provider,
+- Review (ADR-0019): `POST /api/v1/extracted_fields/:id/review_decisions`,
+  the run JSON's `review` / `review_count` / `review_summary`, and
+  `GET /api/v1/extraction_runs/:id/pages/:page_number` (full page text for
+  the evidence highlight); SPA `/leases/:leaseId/extraction-runs/:runId/review`
+  (document and fields side by side). Tests: `ContractReview::RecordDecision`
+  spec, `ReviewDecisionPolicy` spec, `spec/requests/api/v1/review_decisions_spec.rb`,
+  raw-SQL RLS entry.
+- Not built: per-tenant opt-in for sending content to the provider,
   cost computation, accuracy measurement against an annotated dataset.
