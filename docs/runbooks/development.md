@@ -61,6 +61,14 @@ skipped locally (never in CI). Text extraction runs in the worker
 (`bin/jobs`, needs Redis on `localhost:6379`); without it, uploads stay
 "Na fila" in the SPA.
 
+AI field extraction (ADR-0017) is off unless a Claude API key is
+configured — `ANTHROPIC_API_KEY` in the environment of the web and worker
+processes, or `anthropic: { api_key: ... }` in Rails credentials. Without
+it, no run is requested after a text extraction and "Extrair campos"
+answers that the feature is not configured. With it, the text of every
+uploaded contract is sent to Anthropic (a third-party processor — read the
+LGPD notes in ADR-0017 before using real contracts).
+
 No `bin/dev` Procfile-based multi-process setup has been inspected beyond
 the default `bin/dev` script already present — verify its contents before
 relying on it for running Puma + any worker process together.

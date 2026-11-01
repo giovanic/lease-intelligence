@@ -50,5 +50,9 @@ AI output from becoming a business decision (ADR-0012).
 
 ## Implementation status
 
-**Decided, not implemented.** No `ExtractedField`/`EvidenceReference`
-models or schema-validation step exist yet.
+**Implemented** by ADR-0017: `ExtractedField` and `EvidenceReference`
+(append-only, FORCE RLS) exist, and `FieldExtraction::ValidateOutput`
+drops every candidate without a quote found on the cited page of the exact
+text the run read; evidence is stored as character offsets into that page.
+Not built: the review screen that shows evidence side by side with the
+document (ADR-0012).

@@ -1,9 +1,10 @@
 # Document Intelligence Architecture
 
 Status: partially implemented. Upload, checksum, private storage
-(ADR-0015) and text extraction — native PDF text, OCR fallback, per-page
-storage (ADR-0016) — exist; LLM extraction, evidence, review and fact
-approval do not. This describes the target design referenced by
+(ADR-0015), text extraction — native PDF text, OCR fallback, per-page
+storage (ADR-0016) — and LLM field extraction with verified evidence
+(Claude through the `Llm` interface, ADR-0017) exist; human review and
+fact approval do not. This describes the target design referenced by
 `apps/api/CLAUDE.md` §8.
 
 ## Document lifecycle
@@ -52,6 +53,14 @@ model version, prompt version, input document version, status, token
 usage/cost where available, execution time, and errors — this is the
 `ExtractionRun` record.
 
+Implemented as described in ADR-0017: `Llm::AnthropicProvider`
+(`claude-opus-5-5`, structured outputs, streamed, server-side refusal
+fallback), the prompt `FieldExtraction::Prompt` (`lease-fields-v1`:
+instructions in the system channel, the document alone in the user turn
+with `&`/`<`/`>` escaped inside `<page>` elements), and
+`ExtractContractFieldsJob`, requested by `ExtractDocumentTextJob` once a
+text extraction succeeds. Cost is not stored (tokens + model are).
+
 ## Structured extraction and evidence references
 
 Each field produced by an `ExtractionRun` becomes an immutable
@@ -60,6 +69,13 @@ Each field produced by an `ExtractionRun` becomes an immutable
 was derived from. A field with no evidence is not valid output — reject it
 at the schema-validation step rather than let it reach review with no
 justification shown to the human reviewer.
+
+Implemented by `FieldExtraction::ValidateOutput` (ADR-0017): values are
+checked against `FieldExtraction::Catalog` (types, vocabularies, ranges,
+decimal strings for money), and each quote must be found — whitespace
+collapsed — on the cited page of the exact text the run read; the stored
+evidence is the character span in that page. Candidates that fail are
+counted (`rejected_field_count`) and dropped.
 
 ## Human review
 

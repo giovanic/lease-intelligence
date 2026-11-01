@@ -7,7 +7,10 @@ registration (lease + property + parties, no terms) and Document
 Management & Versioning (upload of contracts/amendments, immutable
 versions, private file access) and OCR Processing (per-page text of every
 uploaded version, native PDF text or local Tesseract OCR, status + retry
-in the SPA) — API and SPA screens. Everything else is planned.
+in the SPA) and AI Contract Intelligence + Evidence Management (17 lease
+fields extracted by Claude, each with a quote verified against the stored
+text, shown read-only as unreviewed candidates — ADR-0017) — API and SPA
+screens. Human Review and everything after it is planned.
 
 ## In scope for MVP
 

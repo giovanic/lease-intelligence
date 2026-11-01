@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { Fragment, useEffect, useState, type ReactNode } from 'react'
 import { QueryView } from '../../components/QueryView'
 import { StatusMessage } from '../../components/StatusMessage'
 import { useApiQuery } from '../../hooks/useApiQuery'
@@ -6,19 +6,24 @@ import { listLeaseDocuments } from '../../services/documents'
 import { useWorkspace } from '../../state/workspace'
 import type { ContractDocument } from '../../types/api'
 import { DocumentUploadForm } from './DocumentUploadForm'
+import { ExtractedFieldsPanel } from './ExtractedFieldsPanel'
+import { FieldExtractionStatus } from './FieldExtractionStatus'
+import { isExtractionRunActive } from './fieldLabels'
 import { DOCUMENT_KIND_LABELS, formatBytes, formatDateTime, isTextExtractionActive } from './labels'
 import { NewVersionForm } from './NewVersionForm'
 import { TextExtractionStatus } from './TextExtractionStatus'
 import { useOpenDocumentVersion } from './useOpenDocumentVersion'
+import { useRequestExtractionRun } from './useRequestExtractionRun'
 import { useRequestTextExtraction } from './useRequestTextExtraction'
 
 const PER_PAGE = 100
-/** While an extraction is queued or running, the list refreshes in the background this often. */
+/** While a text or field extraction is queued or running, the list refreshes in the background this often. */
 const POLL_INTERVAL_MS = 5000
 
 /**
- * The documents of a lease (first 100), each with its version history and
- * the text extraction status of every version.
+ * The documents of a lease (first 100), each with its version history and,
+ * per version, the text extraction status and the AI field extraction
+ * status, with the candidate fields on demand.
  */
 export function LeaseDocuments({ leaseId }: { leaseId: string }) {
   const { tenantId, canEdit } = useWorkspace()
@@ -29,11 +34,20 @@ export function LeaseDocuments({ leaseId }: { leaseId: string }) {
   const [versionFormFor, setVersionFormFor] = useState<string | null>(null)
   const { open, openingId, error: openError } = useOpenDocumentVersion()
   const { request, requestingId, error: requestError } = useRequestTextExtraction(refresh)
+  const {
+    request: requestFields,
+    requestingId: requestingFieldsId,
+    error: requestFieldsError,
+  } = useRequestExtractionRun(refresh)
+  const [fieldsFor, setFieldsFor] = useState<string | null>(null)
 
   const documents = state.status === 'success' ? state.data.data : null
   const extracting =
-    documents?.some((document) => document.versions.some((version) => isTextExtractionActive(version.text_extraction))) ??
-    false
+    documents?.some((document) =>
+      document.versions.some(
+        (version) => isTextExtractionActive(version.text_extraction) || isExtractionRunActive(version.extraction_run),
+      ),
+    ) ?? false
 
   // One timer per answer: each refresh brings new data, which re-arms it
   // until nothing is queued or running.
@@ -60,7 +74,7 @@ export function LeaseDocuments({ leaseId }: { leaseId: string }) {
         )}
       </div>
 
-      {[openError, requestError].map(
+      {[openError, requestError, requestFieldsError].map(
         (message) =>
           message && (
             <div key={message} className="alert" role="alert">
@@ -97,6 +111,10 @@ export function LeaseDocuments({ leaseId }: { leaseId: string }) {
                   onOpen={open}
                   requestingId={requestingId}
                   onRequestText={request}
+                  requestingFieldsId={requestingFieldsId}
+                  onRequestFields={requestFields}
+                  fieldsFor={fieldsFor}
+                  onToggleFields={(versionId) => setFieldsFor((current) => (current === versionId ? null : versionId))}
                   showVersionForm={versionFormFor === document.id}
                   onToggleVersionForm={(show) => setVersionFormFor(show ? document.id : null)}
                   versionForm={
@@ -130,6 +148,11 @@ interface DocumentCardProps {
   onOpen: (versionId: string) => void
   requestingId: string | null
   onRequestText: (versionId: string) => void
+  requestingFieldsId: string | null
+  onRequestFields: (versionId: string) => void
+  /** The version whose candidate fields are shown, if any. */
+  fieldsFor: string | null
+  onToggleFields: (versionId: string) => void
   showVersionForm: boolean
   onToggleVersionForm: (show: boolean) => void
   versionForm: ReactNode
@@ -142,6 +165,10 @@ function DocumentCard({
   onOpen,
   requestingId,
   onRequestText,
+  requestingFieldsId,
+  onRequestFields,
+  fieldsFor,
+  onToggleFields,
   showVersionForm,
   onToggleVersionForm,
   versionForm,
@@ -172,40 +199,65 @@ function DocumentCard({
               <th>Enviado por</th>
               <th>Enviado em</th>
               <th>Texto</th>
+              <th>Campos (IA)</th>
               <th aria-label="Ações" />
             </tr>
           </thead>
           <tbody>
-            {document.versions.map((version, index) => (
-              <tr key={version.id}>
-                <td>
-                  v{version.version_number}
-                  {index === 0 && <span className="muted"> · atual</span>}
-                </td>
-                <td>{version.original_filename}</td>
-                <td className="table__number">{formatBytes(version.byte_size)}</td>
-                <td>{version.uploaded_by.full_name}</td>
-                <td>{formatDateTime(version.created_at)}</td>
-                <td>
-                  <TextExtractionStatus
-                    extraction={version.text_extraction}
-                    canEdit={canEdit}
-                    requesting={requestingId === version.id}
-                    onRequest={() => onRequestText(version.id)}
-                  />
-                </td>
-                <td>
-                  <button
-                    type="button"
-                    className="button button--link"
-                    onClick={() => onOpen(version.id)}
-                    disabled={openingId === version.id}
-                  >
-                    {openingId === version.id ? 'Abrindo…' : 'Abrir'}
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {document.versions.map((version, index) => {
+              const run = version.extraction_run
+              const showingFields = fieldsFor === version.id && run?.status === 'succeeded'
+              return (
+                <Fragment key={version.id}>
+                  <tr>
+                    <td>
+                      v{version.version_number}
+                      {index === 0 && <span className="muted"> · atual</span>}
+                    </td>
+                    <td>{version.original_filename}</td>
+                    <td className="table__number">{formatBytes(version.byte_size)}</td>
+                    <td>{version.uploaded_by.full_name}</td>
+                    <td>{formatDateTime(version.created_at)}</td>
+                    <td className="table__status">
+                      <TextExtractionStatus
+                        extraction={version.text_extraction}
+                        canEdit={canEdit}
+                        requesting={requestingId === version.id}
+                        onRequest={() => onRequestText(version.id)}
+                      />
+                    </td>
+                    <td className="table__status">
+                      <FieldExtractionStatus
+                        run={run}
+                        textExtraction={version.text_extraction}
+                        canEdit={canEdit}
+                        requesting={requestingFieldsId === version.id}
+                        onRequest={() => onRequestFields(version.id)}
+                        showingFields={showingFields}
+                        onToggleFields={() => onToggleFields(version.id)}
+                      />
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        className="button button--link"
+                        onClick={() => onOpen(version.id)}
+                        disabled={openingId === version.id}
+                      >
+                        {openingId === version.id ? 'Abrindo…' : 'Abrir'}
+                      </button>
+                    </td>
+                  </tr>
+                  {showingFields && run && (
+                    <tr className="table__detail-row">
+                      <td colSpan={8}>
+                        <ExtractedFieldsPanel runId={run.id} />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              )
+            })}
           </tbody>
         </table>
       </div>

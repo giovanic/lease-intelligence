@@ -59,6 +59,34 @@ END;
 $$;
 
 
+--
+-- Name: evidence_references_reject_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.evidence_references_reject_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  RAISE EXCEPTION 'evidence_references rows are immutable (% rejected)', TG_OP
+    USING ERRCODE = 'restrict_violation';
+END;
+$$;
+
+
+--
+-- Name: extracted_fields_reject_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.extracted_fields_reject_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  RAISE EXCEPTION 'extracted_fields rows are immutable (% rejected)', TG_OP
+    USING ERRCODE = 'restrict_violation';
+END;
+$$;
+
+
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
@@ -191,6 +219,99 @@ CREATE TABLE public.document_versions (
 );
 
 ALTER TABLE ONLY public.document_versions FORCE ROW LEVEL SECURITY;
+
+
+--
+-- Name: evidence_references; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.evidence_references (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    tenant_id uuid NOT NULL,
+    extracted_field_id uuid NOT NULL,
+    text_page_id uuid NOT NULL,
+    page_number integer NOT NULL,
+    start_offset integer NOT NULL,
+    end_offset integer NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT evidence_references_page_number_positive CHECK ((page_number >= 1)),
+    CONSTRAINT evidence_references_span_valid CHECK (((start_offset >= 0) AND (end_offset > start_offset)))
+);
+
+ALTER TABLE ONLY public.evidence_references FORCE ROW LEVEL SECURITY;
+
+
+--
+-- Name: extracted_fields; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.extracted_fields (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    tenant_id uuid NOT NULL,
+    extraction_run_id uuid NOT NULL,
+    "position" integer NOT NULL,
+    field_key character varying NOT NULL,
+    value_type character varying NOT NULL,
+    value_date date,
+    value_integer integer,
+    value_amount numeric(15,2),
+    value_currency character varying,
+    value_text text,
+    value_tax_id character varying,
+    created_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT extracted_fields_field_key_format CHECK (((field_key)::text ~ '^[a-z][a-z_]*$'::text)),
+    CONSTRAINT extracted_fields_position_non_negative CHECK (("position" >= 0)),
+    CONSTRAINT extracted_fields_value_matches_type CHECK (COALESCE(
+CASE value_type
+    WHEN 'date'::text THEN ((value_date IS NOT NULL) AND (value_integer IS NULL) AND (value_amount IS NULL) AND (value_currency IS NULL) AND (value_text IS NULL) AND (value_tax_id IS NULL))
+    WHEN 'integer'::text THEN ((value_integer IS NOT NULL) AND (value_date IS NULL) AND (value_amount IS NULL) AND (value_currency IS NULL) AND (value_text IS NULL) AND (value_tax_id IS NULL))
+    WHEN 'money'::text THEN ((value_amount IS NOT NULL) AND (value_amount >= (0)::numeric) AND ((value_currency)::text ~ '^[A-Z]{3}$'::text) AND (value_date IS NULL) AND (value_integer IS NULL) AND (value_text IS NULL) AND (value_tax_id IS NULL))
+    WHEN 'option'::text THEN ((value_text ~ '^[a-z][a-z_]*$'::text) AND (value_date IS NULL) AND (value_integer IS NULL) AND (value_amount IS NULL) AND (value_currency IS NULL) AND (value_tax_id IS NULL))
+    WHEN 'text'::text THEN ((value_text IS NOT NULL) AND (length(value_text) > 0) AND (value_date IS NULL) AND (value_integer IS NULL) AND (value_amount IS NULL) AND (value_currency IS NULL) AND (value_tax_id IS NULL))
+    WHEN 'party'::text THEN ((value_text IS NOT NULL) AND (length(value_text) > 0) AND ((value_tax_id IS NULL) OR ((value_tax_id)::text ~ '^([0-9]{11}|[0-9]{14})$'::text)) AND (value_date IS NULL) AND (value_integer IS NULL) AND (value_amount IS NULL) AND (value_currency IS NULL))
+    ELSE false
+END, false))
+);
+
+ALTER TABLE ONLY public.extracted_fields FORCE ROW LEVEL SECURITY;
+
+
+--
+-- Name: extraction_runs; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.extraction_runs (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    tenant_id uuid NOT NULL,
+    document_version_id uuid NOT NULL,
+    text_extraction_id uuid NOT NULL,
+    status character varying DEFAULT 'pending'::character varying NOT NULL,
+    requested_by_id uuid,
+    provider character varying NOT NULL,
+    model character varying NOT NULL,
+    model_version character varying,
+    prompt_version character varying NOT NULL,
+    effort character varying NOT NULL,
+    input_tokens integer,
+    output_tokens integer,
+    cache_read_input_tokens integer,
+    cache_creation_input_tokens integer,
+    duration_ms integer,
+    field_count integer,
+    rejected_field_count integer,
+    error_code character varying,
+    started_at timestamp(6) without time zone,
+    finished_at timestamp(6) without time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT extraction_runs_error_code_check CHECK (((error_code IS NULL) OR ((error_code)::text = ANY ((ARRAY['rate_limited'::character varying, 'provider_unavailable'::character varying, 'timeout'::character varying, 'output_truncated'::character varying, 'refused'::character varying, 'invalid_output'::character varying, 'text_too_long'::character varying, 'abandoned'::character varying, 'internal_error'::character varying])::text[])))),
+    CONSTRAINT extraction_runs_error_code_iff_failed CHECK ((((status)::text = 'failed'::text) = (error_code IS NOT NULL))),
+    CONSTRAINT extraction_runs_status_check CHECK (((status)::text = ANY ((ARRAY['pending'::character varying, 'running'::character varying, 'succeeded'::character varying, 'failed'::character varying])::text[]))),
+    CONSTRAINT extraction_runs_succeeded_counts CHECK ((((status)::text <> 'succeeded'::text) OR (COALESCE(((field_count >= 0) AND (rejected_field_count >= 0)), false) AND (model_version IS NOT NULL) AND (finished_at IS NOT NULL)))),
+    CONSTRAINT extraction_runs_usage_non_negative CHECK (((COALESCE(input_tokens, 0) >= 0) AND (COALESCE(output_tokens, 0) >= 0) AND (COALESCE(cache_read_input_tokens, 0) >= 0) AND (COALESCE(cache_creation_input_tokens, 0) >= 0) AND (COALESCE(duration_ms, 0) >= 0)))
+);
+
+ALTER TABLE ONLY public.extraction_runs FORCE ROW LEVEL SECURITY;
 
 
 --
@@ -405,6 +526,30 @@ ALTER TABLE ONLY public.document_versions
 
 
 --
+-- Name: evidence_references evidence_references_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.evidence_references
+    ADD CONSTRAINT evidence_references_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: extracted_fields extracted_fields_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.extracted_fields
+    ADD CONSTRAINT extracted_fields_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: extraction_runs extraction_runs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.extraction_runs
+    ADD CONSTRAINT extraction_runs_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: invitations invitations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -511,6 +656,13 @@ CREATE UNIQUE INDEX idx_document_text_extractions_id_tenant_id ON public.documen
 
 
 --
+-- Name: idx_document_text_extractions_id_version_id_tenant_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_document_text_extractions_id_version_id_tenant_id ON public.document_text_extractions USING btree (id, document_version_id, tenant_id);
+
+
+--
 -- Name: idx_document_text_extractions_one_active_per_version; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -536,6 +688,13 @@ CREATE INDEX idx_document_text_extractions_version_latest ON public.document_tex
 --
 
 CREATE INDEX idx_document_text_pages_extraction_id_tenant_id ON public.document_text_pages USING btree (text_extraction_id, tenant_id);
+
+
+--
+-- Name: idx_document_text_pages_id_tenant_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_document_text_pages_id_tenant_id ON public.document_text_pages USING btree (id, tenant_id);
 
 
 --
@@ -571,6 +730,76 @@ CREATE UNIQUE INDEX idx_document_versions_unique_number_per_document ON public.d
 --
 
 CREATE UNIQUE INDEX idx_document_versions_unique_sha256_per_tenant ON public.document_versions USING btree (tenant_id, sha256);
+
+
+--
+-- Name: idx_evidence_references_field_id_tenant_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_evidence_references_field_id_tenant_id ON public.evidence_references USING btree (extracted_field_id, tenant_id);
+
+
+--
+-- Name: idx_evidence_references_page_id_tenant_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_evidence_references_page_id_tenant_id ON public.evidence_references USING btree (text_page_id, tenant_id);
+
+
+--
+-- Name: idx_extracted_fields_id_tenant_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_extracted_fields_id_tenant_id ON public.extracted_fields USING btree (id, tenant_id);
+
+
+--
+-- Name: idx_extracted_fields_run_id_tenant_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_extracted_fields_run_id_tenant_id ON public.extracted_fields USING btree (extraction_run_id, tenant_id);
+
+
+--
+-- Name: idx_extracted_fields_unique_position_per_run; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_extracted_fields_unique_position_per_run ON public.extracted_fields USING btree (extraction_run_id, "position");
+
+
+--
+-- Name: idx_extraction_runs_id_tenant_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_extraction_runs_id_tenant_id ON public.extraction_runs USING btree (id, tenant_id);
+
+
+--
+-- Name: idx_extraction_runs_one_active_per_version; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_extraction_runs_one_active_per_version ON public.extraction_runs USING btree (document_version_id) WHERE ((status)::text = ANY ((ARRAY['pending'::character varying, 'running'::character varying])::text[]));
+
+
+--
+-- Name: idx_extraction_runs_text_extraction; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_extraction_runs_text_extraction ON public.extraction_runs USING btree (text_extraction_id, document_version_id, tenant_id);
+
+
+--
+-- Name: idx_extraction_runs_version_id_tenant_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_extraction_runs_version_id_tenant_id ON public.extraction_runs USING btree (document_version_id, tenant_id);
+
+
+--
+-- Name: idx_extraction_runs_version_latest; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_extraction_runs_version_latest ON public.extraction_runs USING btree (document_version_id, created_at);
 
 
 --
@@ -693,6 +922,34 @@ CREATE INDEX index_document_versions_on_uploaded_by_id ON public.document_versio
 
 
 --
+-- Name: index_evidence_references_on_tenant_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_evidence_references_on_tenant_id ON public.evidence_references USING btree (tenant_id);
+
+
+--
+-- Name: index_extracted_fields_on_tenant_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_extracted_fields_on_tenant_id ON public.extracted_fields USING btree (tenant_id);
+
+
+--
+-- Name: index_extraction_runs_on_requested_by_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_extraction_runs_on_requested_by_id ON public.extraction_runs USING btree (requested_by_id);
+
+
+--
+-- Name: index_extraction_runs_on_tenant_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_extraction_runs_on_tenant_id ON public.extraction_runs USING btree (tenant_id);
+
+
+--
 -- Name: index_invitations_on_invited_by_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -798,6 +1055,20 @@ CREATE TRIGGER document_versions_immutable BEFORE DELETE OR UPDATE ON public.doc
 
 
 --
+-- Name: evidence_references evidence_references_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER evidence_references_immutable BEFORE DELETE OR UPDATE ON public.evidence_references FOR EACH ROW EXECUTE FUNCTION public.evidence_references_reject_change();
+
+
+--
+-- Name: extracted_fields extracted_fields_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER extracted_fields_immutable BEFORE DELETE OR UPDATE ON public.extracted_fields FOR EACH ROW EXECUTE FUNCTION public.extracted_fields_reject_change();
+
+
+--
 -- Name: contract_documents fk_contract_documents_lease_same_tenant; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -827,6 +1098,46 @@ ALTER TABLE ONLY public.document_text_pages
 
 ALTER TABLE ONLY public.document_versions
     ADD CONSTRAINT fk_document_versions_document_same_tenant FOREIGN KEY (contract_document_id, tenant_id) REFERENCES public.contract_documents(id, tenant_id);
+
+
+--
+-- Name: evidence_references fk_evidence_references_field_same_tenant; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.evidence_references
+    ADD CONSTRAINT fk_evidence_references_field_same_tenant FOREIGN KEY (extracted_field_id, tenant_id) REFERENCES public.extracted_fields(id, tenant_id);
+
+
+--
+-- Name: evidence_references fk_evidence_references_page_same_tenant; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.evidence_references
+    ADD CONSTRAINT fk_evidence_references_page_same_tenant FOREIGN KEY (text_page_id, tenant_id) REFERENCES public.document_text_pages(id, tenant_id);
+
+
+--
+-- Name: extracted_fields fk_extracted_fields_run_same_tenant; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.extracted_fields
+    ADD CONSTRAINT fk_extracted_fields_run_same_tenant FOREIGN KEY (extraction_run_id, tenant_id) REFERENCES public.extraction_runs(id, tenant_id);
+
+
+--
+-- Name: extraction_runs fk_extraction_runs_text_same_version; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.extraction_runs
+    ADD CONSTRAINT fk_extraction_runs_text_same_version FOREIGN KEY (text_extraction_id, document_version_id, tenant_id) REFERENCES public.document_text_extractions(id, document_version_id, tenant_id);
+
+
+--
+-- Name: extraction_runs fk_extraction_runs_version_same_tenant; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.extraction_runs
+    ADD CONSTRAINT fk_extraction_runs_version_same_tenant FOREIGN KEY (document_version_id, tenant_id) REFERENCES public.document_versions(id, tenant_id);
 
 
 --
@@ -902,6 +1213,30 @@ ALTER TABLE ONLY public.document_versions
 
 
 --
+-- Name: extraction_runs fk_rails_777bdf7023; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.extraction_runs
+    ADD CONSTRAINT fk_rails_777bdf7023 FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
+
+
+--
+-- Name: extracted_fields fk_rails_84eb028685; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.extracted_fields
+    ADD CONSTRAINT fk_rails_84eb028685 FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
+
+
+--
+-- Name: extraction_runs fk_rails_874341e405; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.extraction_runs
+    ADD CONSTRAINT fk_rails_874341e405 FOREIGN KEY (requested_by_id) REFERENCES public.users(id);
+
+
+--
 -- Name: memberships fk_rails_99326fb65d; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -963,6 +1298,14 @@ ALTER TABLE ONLY public.counterparties
 
 ALTER TABLE ONLY public.invitations
     ADD CONSTRAINT fk_rails_f2ab2431e2 FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
+
+
+--
+-- Name: evidence_references fk_rails_fd3e0b54d4; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.evidence_references
+    ADD CONSTRAINT fk_rails_fd3e0b54d4 FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
 
 
 --
@@ -1036,6 +1379,45 @@ ALTER TABLE public.document_versions ENABLE ROW LEVEL SECURITY;
 --
 
 CREATE POLICY document_versions_tenant_isolation ON public.document_versions USING ((tenant_id = public.app_current_tenant_id())) WITH CHECK ((tenant_id = public.app_current_tenant_id()));
+
+
+--
+-- Name: evidence_references; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.evidence_references ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: evidence_references evidence_references_tenant_isolation; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY evidence_references_tenant_isolation ON public.evidence_references USING ((tenant_id = public.app_current_tenant_id())) WITH CHECK ((tenant_id = public.app_current_tenant_id()));
+
+
+--
+-- Name: extracted_fields; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.extracted_fields ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: extracted_fields extracted_fields_tenant_isolation; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY extracted_fields_tenant_isolation ON public.extracted_fields USING ((tenant_id = public.app_current_tenant_id())) WITH CHECK ((tenant_id = public.app_current_tenant_id()));
+
+
+--
+-- Name: extraction_runs; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.extraction_runs ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: extraction_runs extraction_runs_tenant_isolation; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY extraction_runs_tenant_isolation ON public.extraction_runs USING ((tenant_id = public.app_current_tenant_id())) WITH CHECK ((tenant_id = public.app_current_tenant_id()));
 
 
 --
@@ -1117,6 +1499,9 @@ CREATE POLICY properties_tenant_isolation ON public.properties USING ((tenant_id
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261031230002'),
+('20261031230001'),
+('20261031230000'),
 ('20261031220001'),
 ('20261031220000'),
 ('20261031200001'),

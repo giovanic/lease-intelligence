@@ -36,6 +36,16 @@ class Rack::Attack
     req.ip if req.post? && DOCUMENT_UPLOAD_PATH.match?(req.path)
   end
 
+  # Manual reprocessing (docs/adr/0016, docs/adr/0017): each request can end
+  # in a paid LLM call — a field extraction run directly, a text extraction
+  # by requesting one when it succeeds. One run per version is in flight at
+  # a time; this caps how fast someone can chain them.
+  REPROCESS_PATH = %r{\A/api/v1/document_versions/[^/]+/(text_extractions|extraction_runs)\z}
+
+  throttle("reprocessing/ip", limit: 10, period: 1.minute) do |req|
+    req.ip if req.post? && REPROCESS_PATH.match?(req.path)
+  end
+
   self.throttled_responder = lambda do |req|
     retry_after = req.env["rack.attack.match_data"].to_h[:period].to_i
     [

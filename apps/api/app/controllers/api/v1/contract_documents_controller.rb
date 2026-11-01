@@ -16,9 +16,11 @@ module Api
     #   created_at, updated_at }
     # version = { id, contract_document_id, version_number, original_filename, content_type,
     #   byte_size, sha256, uploaded_by: { id, full_name }, text_extraction: text_extraction | null,
-    #   created_at }
+    #   extraction_run: run | null, created_at }
     # text_extraction: the latest attempt, see DocumentTextExtractionsController (every upload
     #   requests one, so a new version starts with status "pending").
+    # extraction_run: the latest AI field extraction run (summary), see ExtractionRunsController
+    #   (requested when the text extraction succeeds, if an LLM provider is configured).
     # Errors: 400 parameter_missing/invalid_parameter, 401, 403 forbidden/tenant_forbidden,
     #   404 not_found, 415 unsupported_media_type, 422 validation_failed (`file`: blank, empty,
     #   too large, not PDF/JPEG/PNG/TIFF, already uploaded; `kind`: second original contract),
@@ -32,7 +34,7 @@ module Api
         lease = find_lease
         authorize ContractDocument
         relation = policy_scope(ContractDocument).where(lease_id: lease.id)
-          .includes(versions: %i[uploaded_by latest_text_extraction]).order(:created_at, :id)
+          .includes(versions: %i[uploaded_by latest_text_extraction latest_extraction_run]).order(:created_at, :id)
         documents, meta = paginate(relation)
 
         render json: { data: documents.map { |document| ContractDocumentSerializer.new(document).as_json }, meta: meta }
@@ -40,7 +42,7 @@ module Api
 
       def show
         document = policy_scope(ContractDocument).where(lease_id: find_lease.id)
-          .includes(versions: %i[uploaded_by latest_text_extraction]).find(params[:id])
+          .includes(versions: %i[uploaded_by latest_text_extraction latest_extraction_run]).find(params[:id])
         authorize document
 
         render json: { data: ContractDocumentSerializer.new(document).as_json }

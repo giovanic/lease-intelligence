@@ -579,6 +579,75 @@ a.button {
   gap: 6px;
 }
 
+/* Pipeline status cells wrap instead of widening the versions table. */
+.table td.table__status {
+  white-space: normal;
+  min-width: 140px;
+}
+
+/* AI-extracted candidate fields of a version, with their evidence (docs/adr/0017) */
+.table__detail-row td {
+  white-space: normal;
+  background: #f8fafc;
+}
+
+.extracted-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.extracted-fields__notice {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  background: #fff4e5;
+  color: #7a4800;
+  font-size: 0.875rem;
+}
+
+.extracted-fields__list {
+  display: grid;
+  grid-template-columns: minmax(160px, 220px) 1fr;
+  gap: 12px 16px;
+  margin: 0;
+}
+
+.extracted-fields__item {
+  display: contents;
+}
+
+.extracted-fields__item dt {
+  color: var(--color-muted);
+  font-size: 0.875rem;
+}
+
+.extracted-fields__item dd {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+}
+
+.extracted-fields__value {
+  font-weight: 600;
+}
+
+.extracted-fields__evidence {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding-left: 10px;
+  border-left: 3px solid var(--color-border);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 640px) {
+  .extracted-fields__list {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Forms */
 .form {
   padding: 24px;

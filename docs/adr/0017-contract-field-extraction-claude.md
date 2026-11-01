@@ -51,7 +51,12 @@ content now leaves our infrastructure.
   below is stricter).
 - The request is **streamed** and the SDK's accumulated final message is
   used, so a long contract with a large thinking budget does not hit HTTP
-  timeouts. `max_tokens` 32 000.
+  timeouts. `max_tokens` 32 000, 900 s per attempt, 2 client retries.
+- **Server-side refusal fallback** (`fallbacks: :default`, beta
+  `server-side-fallback-2026-07-01`): if the model declines, Anthropic
+  re-runs the same request on its default fallback model inside the same
+  call. `model_version` records the model that actually answered, so a
+  fallback is visible per run; a refusal by the whole chain is `refused`.
 - The feature is **off unless `ANTHROPIC_API_KEY` is set** (environment
   or Rails credentials). With no key, no run is created automatically and
   the manual request answers 503. Development and CI run without a key;
@@ -164,10 +169,12 @@ Fields and evidence are written in one transaction with the run's
 
 ### Flow
 
-1. When a text extraction succeeds, `DocumentText::RecordOutcome` calls
-   `FieldExtraction::RequestRun` explicitly in the same transaction
-   (skipped when the provider is not configured). The job
-   `ExtractContractFieldsJob(tenant_id, run_id)` is enqueued after commit.
+1. When a text extraction succeeds, `ExtractDocumentTextJob` calls
+   `FieldExtraction::RequestRun` explicitly as a fourth step, in its own
+   short `within_tenant` — after the pages are committed, so a failure
+   there never loses the text (skipped when the provider is not
+   configured). The job `ExtractContractFieldsJob(tenant_id, run_id)` is
+   enqueued after that transaction commits.
 2. The job (queue `documents`): `within_tenant` marks `running` and loads
    the pages; outside any transaction builds the prompt, calls the
    provider and validates; `within_tenant` stores fields + evidence +
@@ -237,8 +244,13 @@ Fields and evidence are written in one transaction with the run's
 - **Secrets.** The API key lives in env/credentials only, never in a job
   argument, log line or error message.
 - **Logging.** The prompt, response and quotes are contract content: never
-  logged; vendor error messages are reduced to an `error_code`.
-  `filter_parameters` gains `value_text`/`value_tax_id`.
+  logged; vendor errors are re-raised as `Llm` errors with fixed messages
+  and no `cause`, and stored only as an `error_code`. Fields and evidence
+  are inserted one by one with bind parameters, and `filter_parameters`
+  masks `value_text` (and `value_tax_id`, through `:tax_id`). The ADR-0016
+  caveat applies unchanged: with `query_log_tags_enabled` (development
+  only) binds are inlined and the development log does contain extracted
+  values; production has neither that setting nor SQL at `info`.
 - **Tenancy.** Three new tenant-owned tables with RLS forced, composite
   FKs to the version, text extraction and page of the same tenant;
   endpoints authorize through Pundit and find records under RLS (another
@@ -246,4 +258,16 @@ Fields and evidence are written in one transaction with the run's
 
 ## Implementation status
 
-**Proposed — awaiting approval.** Nothing implemented.
+**Accepted — implemented** (`feat/ai-contract-extraction`): `anthropic`
+gem, `Llm` interface + `Llm::AnthropicProvider`, `FieldExtraction::*`
+(catalog, prompt, validation, request/start/extract/record),
+`ExtractContractFieldsJob` (queue `documents`, requested by
+`ExtractDocumentTextJob`), `extraction_runs` / `extracted_fields` /
+`evidence_references` (FORCE RLS, composite FKs, immutability triggers),
+`POST /api/v1/document_versions/:id/extraction_runs`,
+`GET /api/v1/extraction_runs/:id`, `extraction_run` on the version JSON,
+and the "Campos (IA)" column with the read-only fields panel in the SPA.
+Verified with a stand-in provider only: **no request has been made to the
+real Claude API yet** (no key in development or CI). Not built: per-tenant
+opt-in, cost computation, an annotated dataset to measure accuracy,
+`ReviewDecision` (next phase).
